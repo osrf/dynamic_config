@@ -19,7 +19,7 @@ public:
   {
     ros::param::get(name, *(this->_data));
   }
-  ~Parameter();
+  ~Parameter() {}
 
   T get_data() const {
     // You could do locking here to prevent people from accessing while updating
