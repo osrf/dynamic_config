@@ -3,7 +3,7 @@ project(parameter_example)
 
 find_package(catkin REQUIRED COMPONENTS roscpp)
 
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
