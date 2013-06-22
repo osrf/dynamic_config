@@ -19,13 +19,17 @@ add_message_files(
 )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   SetParamWidth.srv
-#   GetParamWidth.srv
-#   SubscribeParamWidth.srv
-#   ParamWidthCallback.srv
-# )
+add_service_files(
+  FILES
+  SetParam.srv
+  GetParam.srv
+  HasParam.srv
+  SearchParam.srv
+  DeleteParam.srv
+  SubscribeParam.srv
+  UnsubscribeParam.srv
+  ParamEvent.srv
+)
 
 include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
