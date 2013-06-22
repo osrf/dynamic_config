@@ -32,3 +32,5 @@ install(DIRECTORY include/ros/
   FILES_MATCHING PATTERN "*.h"
   PATTERN ".svn" EXCLUDE
 )
+
+catkin_add_gtest(parameter_warehouse_test test/parameter_warehouse_test.cpp)
