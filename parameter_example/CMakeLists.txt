@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(parameter_example)
 
-find_package(catkin REQUIRED COMPONENTS roscpp)
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs message_generation)
 
 find_package(Boost REQUIRED)
 
@@ -11,6 +11,21 @@ catkin_package(
   CATKIN_DEPENDS roscpp
   DEPENDS Boost
 )
+
+## Generate messages in the 'msg' folder
+add_message_files(		
+  FILES
+  ParamValue.msg
+)
+
+## Generate services in the 'srv' folder
+# add_service_files(
+#   FILES
+#   SetParamWidth.srv
+#   GetParamWidth.srv
+#   SubscribeParamWidth.srv
+#   ParamWidthCallback.srv
+# )
 
 include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
