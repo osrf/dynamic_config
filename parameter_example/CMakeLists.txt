@@ -5,13 +5,6 @@ find_package(catkin REQUIRED COMPONENTS roscpp std_msgs message_generation)
 
 find_package(Boost REQUIRED)
 
-catkin_package(
-  INCLUDE_DIRS include
-  LIBRARIES parameter_example
-  CATKIN_DEPENDS roscpp
-  DEPENDS Boost
-)
-
 ## Generate messages in the 'msg' folder
 add_message_files(		
   FILES
@@ -31,11 +24,28 @@ add_service_files(
   ParamEvent.srv
 )
 
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
+
+catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES parameter_example
+  CATKIN_DEPENDS message_runtime roscpp
+  DEPENDS Boost
+)
+
 include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
 add_executable(parameter_example_node src/parameter_example_node.cpp)
-
 target_link_libraries(parameter_example_node
+  ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
+)
+
+add_executable(parameter_server src/parameter_server.cpp)
+target_link_libraries(parameter_server
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
 )
