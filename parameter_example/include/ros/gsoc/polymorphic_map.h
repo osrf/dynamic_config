@@ -7,6 +7,8 @@ namespace ros {
 
   namespace gsoc {
 
+
+
 typedef std::runtime_error InvalidParameterTypeException; 
 
 template <
