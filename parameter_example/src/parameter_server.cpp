@@ -1,6 +1,5 @@
 #include <iostream>
 #include "ros/ros.h"
-#include "ros/gsoc/service_param_transport.h"
 
 #include "parameter_example/SetParam.h"
 
