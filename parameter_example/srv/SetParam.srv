@@ -1,3 +1,3 @@
 string name
-ParamValue value
+uint8[] value
 ---
