@@ -5,6 +5,11 @@
 #include "parameter_example/SetParam.h"
 #include "parameter_example/GetParam.h"
 #include "parameter_example/HasParam.h"
+#include "parameter_example/SearchParam.h"
+#include "parameter_example/DeleteParam.h"
+#include "parameter_example/SubscribeParam.h"
+#include "parameter_example/UnsubscribeParam.h"
+#include "parameter_example/ParamEvent.h"
 
 namespace ros {
 
@@ -29,14 +34,30 @@ namespace ros {
 
     } // serialization
 
+
+  bool printEventAndParamService(parameter_example::ParamEvent::Request  &req,
+                                 parameter_example::ParamEvent::Response &res)
+  {
+    ROS_INFO_STREAM("Calling printEventAndParamService");
+  }
+
+
 // To get and set the value of the parameter it uses
 // the policy specified.
 template <typename T>
 class Parameter
 {
 public:
+  Parameter(const std::string& name, const std::string& callback, int nothing)
+  : impl_(new Impl)
+  {
+    impl_->name_ = name;
+    ROS_INFO_STREAM("Should register callback << callback");
+    subscribe();
+  }
+
   Parameter(const std::string &name, const T &default_value)
-    : impl_(new Impl)
+  : impl_(new Impl)
   { 
     impl_->name_ = name;
   }
@@ -54,7 +75,7 @@ public:
   : impl_(other.impl_) 
   {}
 
-  ~Parameter() {}
+  ~Parameter() { }
 
   const std::string& getName()
   {
@@ -96,7 +117,7 @@ public:
   {
     parameter_example::HasParam srv;
     srv.request.name = impl_->name_;
-    std::string srv_name("/parameter_server/set_param");
+    std::string srv_name("/parameter_server/has_param");
     if (ros::service::call(srv_name, srv)) {
       return srv.response.hasParam;
     } else {
@@ -107,13 +128,32 @@ public:
 
   void del()
   {
-
   }
 
 private:
 
+  void subscribe()
+  {
+    // create ServiceServer
+    ros::NodeHandle n("~");
+    impl_->serviceServer_
+      = n.advertiseService("param_event", printEventAndParamService);    
+
+    // subscribe
+    parameter_example::SubscribeParam srv;
+    srv.request.name = impl_->name_;
+    srv.request.service = impl_->serviceServer_.getService();
+    std::string srv_name("/parameter_server/subscribe_param");
+    if (ros::service::call(srv_name, srv)) {
+      // Do nothing  
+    } else {
+      ROS_ERROR_STREAM("Unable to call '" << srv_name  << "' service");
+    }
+  }
+
   struct Impl {
     std::string name_;
+    ros::ServiceServer serviceServer_;
   };
   typedef boost::shared_ptr<Impl> ImplPtr;
 
@@ -141,6 +181,15 @@ namespace param {
 
 class ParameterInterface {
 public:
+
+  template <class T>
+  Parameter<T> createParameter(const std::string& name,
+                               const std::string& callback,
+                               int nothing)
+  {
+    Parameter<T> p(name, callback, nothing);
+    return p;
+  }
   
   template <class T>
   Parameter<T> createParameter(const std::string &name, 

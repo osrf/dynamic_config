@@ -12,9 +12,9 @@ void timer_callback(
 {
   std_msgs::String msg;
   // If the message is dynamically updated it should take affect here
-  msg.data = message.getData();
-  ROS_INFO_STREAM("Sending '" << msg.data << "'");
-  pub.publish(msg);
+  // msg.data = message.getData();
+  //ROS_INFO_STREAM("Sending '" << msg.data << "'");
+  //pub.publish(msg);
 }
 
 int main(int argc, char **argv) {
@@ -33,6 +33,8 @@ int main(int argc, char **argv) {
     boost::bind(timer_callback, _1, chatter_pub, message),
     false);
   timer.start();
+
+  ros::gsoc::Parameter<int> myParam = pi.createParameter<int>("/myint", "fakeCallback", 0);
 
   ros::spin();
 

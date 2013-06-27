@@ -62,6 +62,14 @@ void getParamArg(const std::string& name,
   else if (type == "bool"  ) printParameter<bool>(name);
 }
 
+void subscribeParamArg(const std::string& name)
+{
+  ros::gsoc::ParameterInterface pi;
+  ros::gsoc::Parameter<int> param = pi.createParameter<int>(name, "fakeCallback", 0);
+  ros::spin();
+}
+
+
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "rosparam_node");
@@ -79,10 +87,17 @@ int main(int argc, char **argv)
 
   } else if ("get" == arg1) {
     if (argc < 4) {
-      ROS_INFO("Bad number of arguments for arg set");
+      ROS_INFO("Bad number of arguments for arg get");
       return -1;
     }
     getParamArg(argv[2], argv[3]);
+
+  } else if ("subscribe" == arg1) {
+    if (argc < 3) {
+      ROS_INFO("Bad number of arguments for arg subscribe");
+      return -1;
+    }
+    subscribeParamArg(argv[2]);
   }
 
 }

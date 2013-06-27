@@ -1,3 +1,4 @@
 string name
-ParamValue value
+int8 event
+uint8[] value
 ---
