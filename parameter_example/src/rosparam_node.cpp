@@ -8,8 +8,7 @@ void setParameterInServer(const std::string& name,
 			  const T& value)
 {
   ros::gsoc::ParameterInterface pi;
-  ros::gsoc::Parameter<T, ros::gsoc::NonCachePolicy> param = 
-    pi.createParameter<T, ros::gsoc::NonCachePolicy>(name);
+  ros::gsoc::Parameter<T> param = pi.createParameter<T>(name);
   param.setData(value);
 }
 
@@ -44,8 +43,8 @@ template <class T>
 void printParameter(const std::string& name)
 {
   ros::gsoc::ParameterInterface pi;
-  ros::gsoc::Parameter<T, ros::gsoc::NonCachePolicy> param = 
-    pi.createParameter<T, ros::gsoc::NonCachePolicy>(name);
+  ros::gsoc::Parameter<T> param = 
+    pi.createParameter<T>(name);
   if (param.exist()) {
     ROS_INFO_STREAM(param.getData());
   } else {
