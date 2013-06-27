@@ -68,4 +68,3 @@ install(DIRECTORY include/ros/
   PATTERN ".svn" EXCLUDE
 )
 
-catkin_add_gtest(parameter_warehouse_test test/parameter_warehouse_test.cpp)
