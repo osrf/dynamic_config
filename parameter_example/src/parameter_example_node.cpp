@@ -9,7 +9,7 @@ template < class T >
 void timer_callback(
   const ros::TimerEvent &event,
   const ros::Publisher &pub,
-  const T& message)
+  T& message)
   // const ros::gsoc::Parameter<std::string, ros::gsoc::NonCachePolicy> &message)
 {
   std_msgs::String msg;
@@ -45,8 +45,8 @@ ros::Timer createTimer(const std::string& name, const std::string& default_value
 int main(int argc, char **argv) 
 {
   ros::init(argc, argv, "foo");
-  ros::Timer timer1 = createTimer<ros::gsoc::NonCachePolicy>("~message", "My default value");
-  ros::Timer timer2 = createTimer<ros::gsoc::CachePolicy>("~cacheMessage", "My cache default value");
+  ros::Timer timer1 = createTimer<ros::gsoc::NonCachePolicy>("/foo/message", "My default value");
+  // ros::Timer timer2 = createTimer<ros::gsoc::CachePolicy>("/foo/cacheMessage", "My cache default value");
   ros::spin();
 
   return 0;
