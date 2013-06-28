@@ -1,4 +1,5 @@
 #include <boost/shared_ptr.hpp>
+#include <boost/signal.hpp>
 #include <map>
 #include <ros/ros.h>
 
@@ -34,25 +35,18 @@ namespace ros {
 
     } // serialization
 
-
-  bool printEventAndParamService(parameter_example::ParamEvent::Request  &req,
-                                 parameter_example::ParamEvent::Response &res)
-  {
-    ROS_INFO_STREAM("Calling printEventAndParamService");
-  }
-
-
 // To get and set the value of the parameter it uses
 // the policy specified.
 template <typename T>
 class Parameter
 {
 public:
-  Parameter(const std::string& name, const std::string& callback, int nothing)
+ Parameter(const std::string& name, boost::function<void (int, T)>& param_func)
   : impl_(new Impl)
   {
     impl_->name_ = name;
-    ROS_INFO_STREAM("Should register callback << callback");
+    impl_->serviceServerRunning_ = false;
+    impl_->sig_.connect(param_func);
     subscribe();
   }
 
@@ -130,14 +124,25 @@ public:
   {
   }
 
+  // Should not be visible
+  bool notifyCallbacks(parameter_example::ParamEvent::Request  &req,
+                       parameter_example::ParamEvent::Response &res)
+  {
+    T value;
+    serialization::deserializeValue(req.value, value);
+    impl_->sig_(req.event, value);
+  }
+
 private:
 
   void subscribe()
   {
     // create ServiceServer
-    ros::NodeHandle n("~");
-    impl_->serviceServer_
-      = n.advertiseService("param_event", printEventAndParamService);    
+    if (!impl_->serviceServerRunning_) {
+      impl_->serviceServer_ = ros::NodeHandle("~")
+        .advertiseService("param_event", &Parameter<T>::notifyCallbacks, this);
+      impl_->serviceServerRunning_ = false;
+    }
 
     // subscribe
     parameter_example::SubscribeParam srv;
@@ -153,7 +158,9 @@ private:
 
   struct Impl {
     std::string name_;
+    bool serviceServerRunning_;
     ros::ServiceServer serviceServer_;
+    boost::signal<void (int, T)> sig_;
   };
   typedef boost::shared_ptr<Impl> ImplPtr;
 
@@ -184,10 +191,9 @@ public:
 
   template <class T>
   Parameter<T> createParameter(const std::string& name,
-                               const std::string& callback,
-                               int nothing)
+                               boost::function<void (int, T)>& param_func)
   {
-    Parameter<T> p(name, callback, nothing);
+    Parameter<T> p(name, param_func);
     return p;
   }
   
@@ -209,7 +215,6 @@ public:
   }
 
 };
-
 
   } // gsoc
 

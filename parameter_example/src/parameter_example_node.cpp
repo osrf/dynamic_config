@@ -17,6 +17,12 @@ void timer_callback(
   //pub.publish(msg);
 }
 
+void param_callback(int paramEvent,
+                    int parameter)
+{
+  ROS_INFO_STREAM("The new value of the parameter is " << parameter);
+}
+
 int main(int argc, char **argv) {
   ros::init(argc, argv, "foo");
   ros::NodeHandle n;
@@ -34,7 +40,8 @@ int main(int argc, char **argv) {
     false);
   timer.start();
 
-  ros::gsoc::Parameter<int> myParam = pi.createParameter<int>("/myint", "fakeCallback", 0);
+  boost::function<void (int, int)> f = param_callback;
+  ros::gsoc::Parameter<int> myParam = pi.createParameter<int>("/myint", f);
 
   ros::spin();
 

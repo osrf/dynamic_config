@@ -65,7 +65,7 @@ void getParamArg(const std::string& name,
 void subscribeParamArg(const std::string& name)
 {
   ros::gsoc::ParameterInterface pi;
-  ros::gsoc::Parameter<int> param = pi.createParameter<int>(name, "fakeCallback", 0);
+  // ros::gsoc::Parameter<int> param = pi.createParameter<int>(name, "fakeCallback", 0);
   ros::spin();
 }
 
