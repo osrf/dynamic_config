@@ -3,6 +3,8 @@
 #include <map>
 #include <ros/ros.h>
 
+#include "parameter_manager.h"
+
 #include "parameter_example/SetParam.h"
 #include "parameter_example/GetParam.h"
 #include "parameter_example/HasParam.h"
@@ -34,6 +36,7 @@ namespace ros {
       }
 
     } // serialization
+
 
 // To get and set the value of the parameter it uses
 // the policy specified.
@@ -168,6 +171,54 @@ private:
 };
 
 
+template <class T>
+class ParameterServer
+{
+ public:
+ ParameterServer(const std::string& name, boost::function<void (int, Parameter<T>&)>& param_func)
+    : impl_(new Impl(name, param_func))
+  { }
+
+  ParameterServer(const ParameterServer &other)
+  : impl_(other.impl_)
+  {}
+
+  ~ParameterServer() {};
+
+  const std::string& getName()
+  {
+    return impl_->name_;
+  }
+
+ private:
+
+  struct Impl
+  {
+  Impl(const std::string& name, boost::function<void (int, Parameter<T>&)>& param_func)
+    : name_(name)
+    {
+      std::cerr << "connecting" << std::endl;
+      Parameter<T> param(name);
+      boost::function<void (int)> f = boost::bind(param_func, _1, param);
+      connection_ = ParameterManager::instance()->connect(name, f);
+    }
+
+    ~Impl()
+    {
+      ParameterManager::instance()->disconnect(name_, connection_);
+    }
+
+    std::string name_;
+    ParameterManager::ParameterManagerConnection connection_;
+  };
+
+  typedef boost::shared_ptr<Impl> ImplPtr;
+  ImplPtr impl_;
+
+};
+
+
+
 namespace param {
 
   template <class T>
@@ -214,6 +265,13 @@ public:
     return p;
   }
 
+  template <class T>
+  ParameterServer<T> createParameterServer(const std::string &name,
+                                           boost::function<void (int, Parameter<T>&)>& param_func)
+  {
+    ParameterServer<T> ps(name, param_func);
+    return ps;
+  }
 };
 
   } // gsoc

@@ -154,6 +154,7 @@ bool unsubscribeParamService(parameter_example::UnsubscribeParam::Request  &req,
                              parameter_example::UnsubscribeParam::Response &res)
 {
   subsManager.remove(req.name, req.service);
+  ROS_INFO_STREAM("Unsubscribing param " << req.name << " of service " << req.service);
   return true;
 }
 
@@ -175,7 +176,7 @@ int main(int argc, char **argv)
   ros::ServiceServer srv6 = n.advertiseService("subscribe_param", subscribeParamService);
   ros::ServiceServer srv7 = n.advertiseService("unsubscribe_param", subscribeParamService);
 
-
-  ros::spin();
+  ros::MultiThreadedSpinner spinner(4);
+  spinner.spin();
 }
 
