@@ -70,4 +70,5 @@ install(DIRECTORY include/ros/
 
 
 # Build tests
-catkin_add_gtest(utest test/command_test.cpp)
+catkin_add_gtest(test_command test/command_test.cpp)
+catkin_add_gtest(commands_queue_test test/commands_queue_test.cpp)
