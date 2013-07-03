@@ -68,3 +68,6 @@ install(DIRECTORY include/ros/
   PATTERN ".svn" EXCLUDE
 )
 
+
+# Build tests
+catkin_add_gtest(utest test/command_test.cpp)
