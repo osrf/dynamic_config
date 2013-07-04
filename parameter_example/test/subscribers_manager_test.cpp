@@ -1,85 +1,88 @@
+#include <map>
 #include <boost/shared_ptr.hpp>
 #include "gtest/gtest.h"
 #include "parameter_server/subscribers_manager.h"
 
 class SubscribersManagerTest : public testing::Test
 {
-protected:
-  class MyNotifier
+  protected:
+  virtual void SetUp()
   {
-    typedef boost::shared_ptr<int> IntPtr;
+    subs.add("param1", "service1");
+    subs.add("param1", "service2");
+  }
 
-  public:
-    MyNotifier()
-    : counter_(new int)
-    { *counter_ = 0; }
+  class MockNotifier
+    {
+    public:
+    MockNotifier ()
+    : enabled(true)
+    { }
 
-    bool operator==(const MyNotifier& rhs) const
-    { return true; }
+    int timesCalled(const std::string& param, const std::string& subscriber)
+    {
+      return timesSubsCalled[param + subscriber];
+    }
 
-    void notify(int event)
-    { ++(*counter_); }
-      
-    int counter()
-    { return *counter_; }
+    void enable(bool enabled)
+    {
+      this->enabled = enabled;
+    }
 
-  private:
-    IntPtr counter_;
-  
+    protected:
+    bool call(const std::string& param, const std::string& subscriber, int event)
+    {
+      if (enabled)
+        timesSubsCalled[param + subscriber] += 1;
+      return enabled;
+    }
+
+    private:
+      std::map<std::string, int> timesSubsCalled;
+      bool enabled;
   };
 
-  MyNotifier notifier;
-  parameter_server::SubscribersManager<MyNotifier> manager;
+  parameter_server::SubscribersManager<MockNotifier> subs;
 };
 
-TEST_F(SubscribersManagerTest, AddOneNotifier) {
-  manager.add("param1", notifier);
-  EXPECT_EQ(manager.size("param1"), 1);
-}
-
-TEST_F(SubscribersManagerTest, AddTwoNotifiers) {
-  manager.add("param1", notifier);
-  manager.add("param1", notifier);
-  EXPECT_EQ(manager.size("param1"), 2);
-}
-
-TEST_F(SubscribersManagerTest, RemoveOneNotifier) {
-  manager.add("param1", notifier);
-  manager.remove("param1", notifier);
-  EXPECT_EQ(manager.size("param1"), 0);  
-}
-
-TEST_F(SubscribersManagerTest, RemoveTwoNotifiers) {
-  std::string p("param1");
-
-  manager.add(p, notifier);
-  manager.add(p, notifier);
-
-  manager.remove(p, notifier);
-  manager.remove(p, notifier);
-}
-
-TEST_F(SubscribersManagerTest, NotifyOne) {
-  std::string p("param1");
-  manager.add(p, notifier);
-  manager.notify(p, 0);
-  EXPECT_EQ(notifier.counter(), 1);
-  manager.notify(p, 0);
-  EXPECT_EQ(notifier.counter(), 2);
-}
-
 TEST_F(SubscribersManagerTest, NotifyMany) {
-  std::string p1("param1");
-  std::string p2("param2");
+  subs.add("param2", "service1");
+  subs.add("param2", "service2");
+  subs.notify("param1", 0);
+  subs.notify("param2", 0);
+  subs.notify("param2", 0);
+  EXPECT_EQ(1, subs.timesCalled("param1", "service1"));
+  EXPECT_EQ(1, subs.timesCalled("param1", "service2"));
+  EXPECT_EQ(2, subs.timesCalled("param2", "service1"));
+  EXPECT_EQ(2, subs.timesCalled("param2", "service2"));
+}
 
-  for (int i=0; i<10; ++i) {
-    manager.add(p1, notifier);
-    manager.add(p2, notifier);
-  }
-  manager.notify(p1, 0);
-  EXPECT_EQ(notifier.counter(), 10);
-  manager.notify(p2, 0);
-  EXPECT_EQ(notifier.counter(), 20);
+TEST_F(SubscribersManagerTest, DontDuplicate) {
+  subs.add("param1", "service1");
+  subs.notify("param1", 0);
+  EXPECT_EQ(1, subs.timesCalled("param1", "service1"));
+}
+
+TEST_F(SubscribersManagerTest, RemoveOneButNotifyOthers) {
+  subs.remove("param1", "service1");
+  subs.notify("param1", 0);
+  EXPECT_EQ(0, subs.timesCalled("param1", "service1"));
+  EXPECT_EQ(1, subs.timesCalled("param1", "service2"));
+}
+
+TEST_F(SubscribersManagerTest, RemoveNotExistent_NoFail) {
+  subs.remove("no_param", "no_srv");
+}
+
+TEST_F(SubscribersManagerTest, RemoveAfter3Tries) {
+  subs.tries(3);
+  subs.enable(false);
+  subs.notify("param1", 0);
+  subs.notify("param1", 0);
+  subs.notify("param1", 0);
+  subs.enable(true);
+  subs.notify("param1", 0);
+  EXPECT_EQ(0, subs.timesCalled("param1", "service1"));
 }
 
 int main(int argc, char **argv)
