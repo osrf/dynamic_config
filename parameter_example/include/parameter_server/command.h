@@ -47,28 +47,6 @@ Command make_command(void(T::*func)(const Arg1&, const Arg2&),
   return Command(boost::bind(func, obj, arg1, arg2));
 }
 
-/*
-template <class T, class Arg1>
-class Command1Arg : public Command
-{
- public:
-  Command1Arg(void(T::*func)(const Arg1&, const Arg2&), T *obj
-                  const Arg1& arg1)
-    : Command(boost::bind(func, obj, arg1))
-    { }
-};
-
-template <class T, class Arg1>
-class Command1Arg : public Command
-{
- public:
-  Command1Arg(void(T::*func)(const Arg1&, const Arg2&), T *obj
-                  const Arg1& arg1)
-    : Command(boost::bind(func, obj, arg1))
-    { }
-};
-*/
-
   } // command
 
 } // parameter_server
