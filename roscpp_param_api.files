@@ -12,3 +12,5 @@
 /home/gon/catkin_ws/src/roscpp_param_api/parameter_example/test/tests.txt
 /home/gon/catkin_ws/src/roscpp_param_api/parameter_example/CMakeLists.txt
 /home/gon/catkin_ws/src/roscpp_param_api/parameter_example/package.xml
+parameter_example/test/parameters_container_test.cpp
+parameter_example/include/parameter_server/parameters_container.h
