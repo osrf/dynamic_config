@@ -40,8 +40,36 @@ Command make_command(void(T::*func)(const Arg1&),
   return Command(boost::bind(func, obj, arg1));
 }
 
+template <class T, class Arg1>
+Command make_command_const(void(T::*func)(Arg1),
+                     T *obj, Arg1 arg1)
+{
+  return Command(boost::bind(func, obj, arg1));
+}
+
 template <class T, class Arg1, class Arg2>
-Command make_command(void(T::*func)(const Arg1&, const Arg2&), 
+Command make_command(void(T::*func)(Arg1, Arg2), 
+                     T *obj, Arg1 arg1, Arg2 arg2)
+{
+  return Command(boost::bind(func, obj, arg1, arg2));
+}
+
+template <class T, class Arg1, class Arg2>
+Command make_command(void(T::*func)(const Arg1&, Arg2),
+                     T *obj, const Arg1& arg1, Arg2 arg2)
+{
+  return Command(boost::bind(func, obj, arg1, arg2));
+}
+
+template <class T, class Arg1, class Arg2>
+Command make_command(void(T::*func)(Arg1, const Arg2&),
+                     T *obj, Arg1 arg1, const Arg2& arg2)
+{
+  return Command(boost::bind(func, obj, arg1, arg2));
+}
+
+template <class T, class Arg1, class Arg2>
+Command make_command_const(void(T::*func)(const Arg1&, const Arg2&),
                      T *obj, const Arg1& arg1, const Arg2& arg2)
 {
   return Command(boost::bind(func, obj, arg1, arg2));
