@@ -2,6 +2,10 @@
 #include <map>
 #include "ros/ros.h"
 
+#include "parameter_server/parameters_server.h"
+#include "parameter_server/command.h"
+#include "parameter_server/commands_queue.h"
+
 #include "parameter_example/SetParam.h"
 #include "parameter_example/GetParam.h"
 #include "parameter_example/HasParam.h"
@@ -14,115 +18,76 @@
 
 namespace parameter_example {
 
-  namespace {
-
-    template <class From, class To>
-    void copyVector(const From& from, To& to)
-    {
-      to.resize(from.size());
-      std::copy(from.begin(), from.end(), to.begin());
-    }
-
-  } // anonymous
-
-class SubscribersManager
-{
-  public:
-    SubscribersManager() {};
-    ~SubscribersManager() {};
-
-    void add(const std::string& name, const std::string& service)
-    {
-      ROS_INFO_STREAM("Adding " << name << " - " << service << " to subs");
-      subscribers[name].push_back(service);
-    }
-
-    void remove(const std::string& name, const std::string& service)
-    {
-      subscribers[name].remove(service);
-    };
-
-    void notifyParamCreated(const std::string& name, 
-                            const std::vector<uint8_t> value)
-    {
-      notify(name, 0, value);
-    };
-
-    void notifyParamUpdated(const std::string& name, 
-                            const std::vector<uint8_t> value) 
-    {
-      notify(name, 1, value);
-    };
-
-    void notifyParamDeleted(const std::string& name, 
-                            const std::vector<uint8_t> value)
-    {
-      notify(name, 2, value);
-    };
-
-  private:
-
-    void notify(const std::string& name, int paramEvent,
-                const std::vector<uint8_t> value)
-    {
-      std::list<std::string>::iterator it = subscribers[name].begin();
-      std::list<std::string>::iterator end = subscribers[name].end();
-      for (; it!=end; ++it) {
-        parameter_example::ParamEvent srv;
-        srv.request.name = name;
-        srv.request.event = 0; // Created event
-        copyVector(value, srv.request.value);
-        ROS_INFO_STREAM("Notifying to " << *it);
-        ros::service::call(*it, srv);
-      }
-    }
-
-   std::map<std::string, std::list<std::string> > subscribers;
-};
-
   namespace {  // private namespace
 
-   typedef std::map<std::string, std::vector<uint8_t> > ParamContainer;
+    namespace comm = parameter_server::command;
+    comm::CommandsQueue<comm::Command> commands;
 
-    ParamContainer params;
+    typedef std::vector<uint8_t> Value;
+    typedef parameter_server::ParametersServer<Value> ParamServer;
+    ParamServer paramServer;
 
-    SubscribersManager subsManager;
+    class Callback
+    {
+    public:
+
+      Callback(const std::string& srv, const std::string& name)
+      : service_(srv), name_(name) { }
+
+      bool callback(const ParamServer::Response& res)
+      { 
+        ROS_INFO_STREAM("Callback!!!\n  Service: " << service_
+          << "\n  Param: " << name_ << "\n  Event: " << res.event);
+
+        parameter_example::ParamEvent evt;
+        evt.request.name = name_;
+        evt.request.event = res.event;
+
+        comm::Command c(
+          boost::bind(ros::service::call<parameter_example::ParamEvent>, 
+          service_, evt)
+        );
+        commands.add(c);
+        ROS_INFO_STREAM("Commands queue size " << commands.size());
+
+        // if (!ros::service::call(service_, evt)) {
+        //   ROS_ERROR_STREAM("Unable to call " << service_);
+        // }
+      }
+
+    private:
+      std::string service_;
+      std::string name_;
+    };
+    typedef boost::shared_ptr<Callback> CallbackPtr;
+
+    typedef std::map<std::string, CallbackPtr> ParamCallbacks;
+    typedef std::map<std::string, ParamCallbacks> ServiceCallbacks;
+    ServiceCallbacks srvCbs;
 
   } // anonymous
 
 
 bool setParamService(parameter_example::SetParam::Request  &req,
-		     parameter_example::SetParam::Response &res)
+		                 parameter_example::SetParam::Response &res)
 {
   ROS_INFO_STREAM("Setting value for param '" << req.name << "'");
-
-  bool paramDidNotExist = params.find(req.name) == params.end();
-  copyVector(req.value, params[req.name]);
-  if (paramDidNotExist) 
-    subsManager.notifyParamCreated(req.name, req.value);
-  else
-    subsManager.notifyParamUpdated(req.name, req.value);
+  paramServer.set(req.name, req.value);
   return true;
 }
 
 bool getParamService(parameter_example::GetParam::Request  &req,
-		     parameter_example::GetParam::Response &res)
+		                 parameter_example::GetParam::Response &res)
 {
-  ParamContainer::iterator it = params.find(req.name);
-  if (it == params.end()) {
-    ROS_INFO_STREAM("Param '" << req.name << "' doesn't exist");
-    return false;
-  }
   ROS_INFO_STREAM("Returning param '" << req.name << "'");
-  res.value.resize(it->second.size());
-  std::copy(it->second.begin(), it->second.end(), res.value.begin());
+  paramServer.get(req.name, res.value);
   return true; 
 }
 
 bool hasParamService(parameter_example::HasParam::Request  &req,
-		     parameter_example::HasParam::Response &res)
+		                 parameter_example::HasParam::Response &res)
 {
-  res.hasParam = (params.find(req.name) != params.end());
+  res.hasParam = paramServer.has(req.name);
   ROS_INFO_STREAM("Param '" << req.name << "' exists? " << res.hasParam);
   return true;
 }
@@ -137,24 +102,23 @@ bool searchParamService(parameter_example::SearchParam::Request  &req,
 bool deleteParamService(parameter_example::DeleteParam::Request  &req,
                         parameter_example::DeleteParam::Response &res)
 {
-  std::vector<uint8_t> value(params[req.name]);
-  params.erase(req.name);
-  subsManager.notifyParamDeleted(req.name, value);
   return true;
 }
 
 bool subscribeParamService(parameter_example::SubscribeParam::Request  &req,
                            parameter_example::SubscribeParam::Response &res)
 {
-  subsManager.add(req.name, req.service);
+  CallbackPtr cb(new Callback(req.service, req.name));
+  srvCbs[req.service][req.name] = cb;
+  paramServer.subscribe(req.name, &Callback::callback, cb);
   return true;
 }
 
 bool unsubscribeParamService(parameter_example::UnsubscribeParam::Request  &req,
                              parameter_example::UnsubscribeParam::Response &res)
 {
-  subsManager.remove(req.name, req.service);
   ROS_INFO_STREAM("Unsubscribing param " << req.name << " of service " << req.service);
+  srvCbs[req.service].erase(req.name);
   return true;
 }
 
@@ -176,7 +140,20 @@ int main(int argc, char **argv)
   ros::ServiceServer srv6 = n.advertiseService("subscribe_param", subscribeParamService);
   ros::ServiceServer srv7 = n.advertiseService("unsubscribe_param", subscribeParamService);
 
-  ros::MultiThreadedSpinner spinner(4);
-  spinner.spin();
-}
+  // ros::MultiThreadedSpinner spinner(4);
+  // ros::Rate r(30);
+  // while (ros::ok()) {
+  //   commands.executeAll();
+  //   ros::spinOnce();
+  //   r.sleep();
+  // }
 
+  ros::AsyncSpinner spinner(4);
+  spinner.start();
+
+  ros::Rate r(30);
+  while (ros::ok()) {
+    commands.executeAll();
+    r.sleep();
+  }
+}

@@ -1,15 +1,33 @@
 #include "gtest/gtest.h"
 #include "parameter_server/parameter.h"
 
-class ParameterServerTest : public testing::Test
+class ParameterTest : public testing::Test
 {
 protected:
   typedef std::vector<int> Ints;
-  typedef int Subscriber;
-  typedef parameter_server::Parameter<Ints, Subscriber> MyParameter;
+  typedef parameter_server::Parameter<Ints> MyParameter;
+
+  class CallbackStruct {
+  public:
+    CallbackStruct()
+    : counter_(0) { };
+    bool myCallback(const MyParameter::CallbackResponse& res)
+    { 
+      ++counter_;
+      return true; 
+    }
+    int count()
+    { return counter_; }
+  private:
+    int counter_;
+  };
+  typedef boost::shared_ptr<CallbackStruct> CallbackStructPtr;
 
   virtual void SetUp()
-  { }
+  { 
+    cb = CallbackStructPtr(new CallbackStruct);
+    p.subscribe(&CallbackStruct::myCallback, cb);
+  }
 
   Ints intsOfSize(int size)
   {
@@ -20,64 +38,50 @@ protected:
   }
 
   MyParameter p;
+  CallbackStructPtr cb;
 };
 
-TEST_F(ParameterServerTest, CopyConstructor) {
+TEST_F(ParameterTest, CopyConstructor) {
   MyParameter q(p);
   EXPECT_EQ(p, q);
 }
 
-TEST_F(ParameterServerTest, OperatorEqual) {
+TEST_F(ParameterTest, OperatorEqual) {
   MyParameter q = p;
   EXPECT_EQ(p, q);
 }
 
-TEST_F(ParameterServerTest, CanGet) {
+TEST_F(ParameterTest, CanGet) {
   p.setValue(intsOfSize(10));
-  Ints ints2;
-  p.getValue(ints2);
-  EXPECT_EQ(intsOfSize(10), ints2);
+  Ints ints;
+  p.getValue(ints);
+  EXPECT_EQ(intsOfSize(10), ints);
 }
 
-TEST_F(ParameterServerTest, HasValueFalse) {
+TEST_F(ParameterTest, HasValueFalse) {
   EXPECT_FALSE(p.hasValue());
 }
 
-TEST_F(ParameterServerTest, HasValueTrue) {
+TEST_F(ParameterTest, HasValueTrue) {
   p.setValue(intsOfSize(10));
   EXPECT_TRUE(p.hasValue());
 }
 
-TEST_F(ParameterServerTest, DeleteValueNotSetted) {
+TEST_F(ParameterTest, DeleteValueNotSetted) {
   p.deleteValue();
   EXPECT_FALSE(p.hasValue());
 }
 
-TEST_F(ParameterServerTest, DeleteValueSetted) {
+TEST_F(ParameterTest, DeleteValueSetted) {
   p.setValue(intsOfSize(10));
   p.deleteValue();
   EXPECT_FALSE(p.hasValue());
 }
 
-TEST_F(ParameterServerTest, CheckSubscribersEmpty) {
-  EXPECT_TRUE(p.subscribersEmpty());
-  EXPECT_EQ(0, p.subscribersSize());
-}
-
-TEST_F(ParameterServerTest, CheckSubscribersNotEmpty) {
-  p.addSubscriber(0);
-  EXPECT_FALSE(p.subscribersEmpty());
-  EXPECT_EQ(1, p.subscribersSize());
-}
-
-TEST_F(ParameterServerTest, IterateThroughSusbcribers) {
-  for (int i=0; i<10; ++i)
-    p.addSubscriber(i);
-  MyParameter::iterator it = p.subscribersBegin();
-  MyParameter::iterator end = p.subscribersEnd();
-  int i = 0;
-  for (; it != end; ++it)
-    EXPECT_EQ(i++, *it);
+TEST_F(ParameterTest, NotifySubscribers) {
+  MyParameter::CallbackResponse res;
+  p.notify(res);
+  EXPECT_EQ(1, cb->count());
 }
 
 int main(int argc, char **argv)

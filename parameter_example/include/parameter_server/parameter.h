@@ -2,17 +2,30 @@
 #define PARAMETER_H
 
 #include <boost/shared_ptr.hpp>
+#include <boost/signals2.hpp>
 #include <set>
 
 namespace parameter_server {
 
-template <class T, class Subscriber>
+template <class T>
 class Parameter
 {
-  typedef std::set<Subscriber> Subscribers;
+public:
+
+  struct CallbackResponse
+  {
+    int event;
+    T value;
+  };
+
+private:
+
+  typedef boost::signals2::signal<void (const CallbackResponse&)> Subscribers;
+  typedef typename Subscribers::slot_type SubscriberCallback;  
 
 public:
-  typedef typename Subscribers::iterator iterator;
+
+  enum Event { CREATED, UPDATED, DELETED };
 
   Parameter()
   : impl_(new Impl)
@@ -45,23 +58,17 @@ public:
   void deleteValue()
   { impl_->setted = false; }
 
-  void addSubscriber(const Subscriber& subscriber)
-  { impl_->subscribers.insert(subscriber); }
+  template <class U>
+  void subscribe(bool(U::*cb)(const CallbackResponse&), boost::shared_ptr<U>& ptr)
+  {
+    namespace bs2 = boost::signals2;
+    impl_->sig.connect(SubscriberCallback(cb, ptr.get(), _1).track(ptr));
+  }
 
-  void removeSubscriber(const Subscriber& subscriber)
-  { impl_->subscribers.erase(subscriber); }
-
-  iterator subscribersBegin()
-  { return impl_->subscribers.begin(); }
-
-  iterator subscribersEnd()
-  { return impl_->subscribers.end(); }
-
-  int subscribersSize()
-  { return impl_->subscribers.size(); }
-
-  bool subscribersEmpty()
-  { return impl_->subscribers.empty(); }
+  void notify(const CallbackResponse& res)
+  {
+    impl_->sig(res);
+  }
 
 private:
 
@@ -69,7 +76,7 @@ private:
   {
     T value;
     bool setted;
-    Subscribers subscribers;
+    Subscribers sig;
   };
   typedef boost::shared_ptr<Impl> ImplPtr;
 

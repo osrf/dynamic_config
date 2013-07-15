@@ -75,3 +75,6 @@ catkin_add_gtest(test_commands_queue test/commands_queue_test.cpp)
 catkin_add_gtest(test_subscribers_manager test/subscribers_manager_test.cpp)
 catkin_add_gtest(test_parameters_container test/parameters_container_test.cpp)
 catkin_add_gtest(test_parameter test/parameter_test.cpp)
+catkin_add_gtest(test_parameters_server test/parameters_server_test.cpp)
+
+target_link_libraries(test_parameter ${Boost_LIBRARIES} )
