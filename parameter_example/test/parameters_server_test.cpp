@@ -4,64 +4,61 @@
 class ParametersServerTest : public testing::Test
 {
 protected:
-  typedef std::vector<int> Vector;
+  typedef int Value;
+  typedef parameter_server::ParametersServer<Value> ParamServer;
 
-  class MockNotifier
+  class CallbackStruct {
+    public:
+      CallbackStruct()
+      : counter_(0) { };
+      bool myCallback(const ParamServer::Response& res)
+      { 
+        ++counter_;
+        return true; 
+      }
+      int count()
+      { return counter_; }
+    private:
+      int counter_;
+    };
+  typedef boost::shared_ptr<CallbackStruct> CallbackStructPtr;
+
+
+  virtual void SetUp()
   {
-  public:
-    bool call(const std::string& name, const std::string& subs_id, int event)
-    { 
-      map[name][subs_id] = event;
-    }
-
-    int lastEvent(const std::string& name, const std::string& subs_id)
-    {
-      return map[name][subs_id];
-    }
-
-    typedef std::map<std::string, int> SecondMap;
-    typedef std::map<std::string, SecondMap> FirstMap;
-    FirstMap map;
-  };
-
-  Vector createVector(int size)
-  {
-    Vector v(size);
-    for (int i=0; i<size; ++i) {
-      v[i] = i*10;
-    }
-    return v;
+    srv.set("p1", 1);
   }
 
-  parameter_server::ParametersServer<Vector, MockNotifier> srv;
+  ParamServer srv;
 };
 
-TEST_F(ParametersServerTest, SetAndGetManyParameters) {
-  srv.set("v1", createVector(10));
-  srv.set("v2", createVector(20));
-  Vector v1, v2;
-  srv.get("v1", v1);
-  srv.get("v2", v2);
-  EXPECT_EQ(v1, createVector(10));
-  EXPECT_EQ(v2, createVector(20));
+TEST_F(ParametersServerTest, CanRemoveParameter) {
+  srv.remove("param1");
 }
 
-TEST_F(ParametersServerTest, GetNonExistentParameter_shouldDoNothing) {
-  Vector v;
-  Vector vCopy(v);
-  srv.get("noExist", v);
-  EXPECT_EQ(v, vCopy);
+TEST_F(ParametersServerTest, CheckParameterExist) {
+  EXPECT_TRUE(srv.has("p1"));
+  EXPECT_FALSE(srv.has("no"));
 }
 
-TEST_F(ParametersServerTest, canSubscribe) {
-  srv.subscribe("p", "subcriber_id");
+TEST_F(ParametersServerTest, GetExistentParameter_shouldReturnTrue) {
+  int p1;
+  EXPECT_TRUE(srv.get("p1", p1));
+  EXPECT_EQ(1, p1);
 }
 
-TEST_F(ParametersServerTest, SetNonExistentParameter_shouldNotifySubscribers) {
-  srv.subscribe("p", "subs1");
-  srv.set("p", createVector(10)); 
-  srv.processSubscribersEvents();
-  EXPECT_EQ(0, srv.lastEvent("p", "subs1"));
+TEST_F(ParametersServerTest, GetNotExistentParameter_shouldReturnFalse) {
+  int no;
+  EXPECT_FALSE(srv.get("no", no));
+}
+
+TEST_F(ParametersServerTest, SetParameter_shouldNotifySubscribers) {
+  {
+    CallbackStructPtr cb(new CallbackStruct);
+    srv.subscribe("p1", &CallbackStruct::myCallback, cb);
+    srv.set("p1", 20);
+    EXPECT_EQ(1, cb->count());
+  }
 }
 
 int main(int argc, char **argv)

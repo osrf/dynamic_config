@@ -49,9 +49,7 @@ int main(int argc, char **argv) {
   ros::gsoc::ParameterServer<int> paramServer 
    = pi.createParameterServer<int>("/myint", f);
 
-
-  ros::MultiThreadedSpinner spinner(4);
-  spinner.spin();
+   ros::spin();
 
   return 0;
 }
