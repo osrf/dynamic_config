@@ -144,13 +144,9 @@ namespace ros_parameter {
   {
   public:
     typedef boost::variant<bool, int, double, std::string> DataType;
-    typedef boost::function<
-      void(const ParameterGroup&, 
-      const std::map<std::string,DataType>&, 
-      std::map<std::string, bool>&)
-    > OnChangeCallbackType;
-
-    typedef boost::function<void(ParameterGroup&, const std::map<std::string, bool>&)> OnUpdateCallbackType;
+    typedef boost::function<void(const ParameterGroup&, std::map<std::string,DataType>&, 
+                            std::map<std::string, bool>&)> OnChangeCallbackType;
+    typedef boost::function<void(ParameterGroup&, std::map<std::string, bool>&)> OnUpdateCallbackType;
     typedef boost::variant<Parameter<bool>, Parameter<int>, Parameter<double>, Parameter<std::string> > ParameterType;
 
     ParameterGroup() : impl_(new Impl) {}
@@ -179,7 +175,7 @@ namespace ros_parameter {
       impl_->parameters_[name] = param;
 
       get<T>(name).on_change(boost::bind(&ParameterGroup::parameter_on_change<T>, this, _1, _2));
-      // param.on_update();
+      get<T>(name).on_update(boost::bind(&ParameterGroup::parameter_on_update<T>, this, _1));
     }
 
     void on_change(OnChangeCallbackType callback) {
@@ -208,14 +204,9 @@ namespace ros_parameter {
       if (!impl_->on_change_callback_)
         return true;
 
-      std::map<std::string, bool> changed;
-      std::map<std::string, ParameterType>::iterator it = impl_->parameters_.begin();
-      std::map<std::string, ParameterType>::iterator end = impl_->parameters_.end();
-      for (; it != end; ++it) {
-        changed[it->first] = false;
-      }
       std::string name = param.name();
-      changed[name] = true;
+      std::map<std::string, bool> changed;
+      fillMapWithFalseExceptOneParameter(name, changed);
 
       std::map<std::string, DataType> newData;
       newData[name] = data;
@@ -226,8 +217,24 @@ namespace ros_parameter {
     }
 
     template <typename T>
-    void parameter_on_update(Parameter<T>& parameter) {
+    void parameter_on_update(Parameter<T>& param) {
+      if (!impl_->on_update_callback_)
+        return;
 
+      std::string name = param.name();
+      std::map<std::string, bool> changed;
+      fillMapWithFalseExceptOneParameter(name, changed);
+
+      impl_->on_update_callback_(*this, changed);
+    }
+
+    void fillMapWithFalseExceptOneParameter(const std::string& name, std::map<std::string, bool>& changed) {
+      std::map<std::string, ParameterType>::iterator it = impl_->parameters_.begin();
+      std::map<std::string, ParameterType>::iterator end = impl_->parameters_.end();
+      for (; it != end; ++it) {
+        changed[it->first] = false;
+      }
+      changed[name] = true;
     }
 
     struct Impl {

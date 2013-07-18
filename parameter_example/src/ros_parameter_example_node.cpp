@@ -14,35 +14,40 @@ ros::Publisher pub;
 // them. But this would prevent the user from rejecting a value which received
 // an update, yet was not changed.
 void on_group_change(const ros_parameter::ParameterGroup &pg, 
-                     const std::map<std::string, ros_parameter::ParameterGroup::DataType> &newData,
+                     std::map<std::string, ros_parameter::ParameterGroup::DataType> &newData,
                      std::map<std::string, bool> &changed)
 {
-    if (changed["~msg1"] && changed["~msg2"]) {
-        ROS_INFO("Both changed.");
-    } else if (changed["~msg1"]) {
-        ROS_INFO("~msg1 changed");
-    } else if (changed["~msg2"]) {
-        ROS_INFO("~msg2 changed");
-    } else {
-        ROS_INFO("Neither changed? This shouldn't happen.");
-    }
-    if (changed["~msg1"] || changed["~msg2"]) {
-        std_msgs::String msg;
-        // I don't really like this part of the API, see if you can come up with something better
-        std::string msg1;
-        pg.get_data("~msg1", msg1);
-        std::string msg2;
-        pg.get_data("~msg2", msg2);
-        msg.data = "Message: " + msg1 + " " + msg2 + "!";
-        ROS_INFO_STREAM(msg.data);
-        pub.publish(msg);
-    }
+  // Forbid any change.
+  if (changed["~msg1"]) {
+    changed["~msg1"] = false;
+  // Just allow inputs finished with an exclamation
+  } else if (changed["~msg2"]) {
+    std::string msg = boost::get<std::string>(newData["~msg2"]);
+    char lastChar = msg[msg.length()-1];
+    changed["~msg2"] = lastChar == '!';
+  }
+}
+
+void on_group_update(ros_parameter::ParameterGroup &pg,
+                     std::map<std::string, bool>& changed)
+{
+  if (changed["~msg1"]) {
+    ROS_INFO("~msg1 shouldn't update");
+  } else if (changed["~msg2"]) {
+    std::string msg1;
+    pg.get_data("~msg1", msg1);
+    std::string msg2;
+    pg.get_data("~msg2", msg2);
+    std::string msg = "Message: " + msg1 + " " + msg2;
+    ROS_INFO_STREAM(msg);
+  } else {
+      ROS_INFO("Neither changed? This shouldn't happen.");
+  }
 }
 
 template <typename T>
-bool on_parameter_change(const ros_parameter::Parameter<T>& param, const T& data)
+bool on_parameter_change_true(const ros_parameter::Parameter<T>& param, const T& data)
 {
-  ROS_INFO_STREAM(param.name() << " changed " << data);
   return true;
 }
 
@@ -63,19 +68,24 @@ void timer_callback(const ros::TimerEvent &event,
                     ros_parameter::Parameter<int> int2,
                     ros_parameter::ParameterGroup pg)
 {
+  // Should increment the data value
   int i = int1.data();
   ++i;
   if (!int1.data(i))
     ROS_INFO_STREAM("Can't change " << int1.name());
 
+  // Should fail
   if (!int2.data(0))
     ROS_INFO_STREAM("Can't change " << int2.name());
 
+  // Update ~msg1. This shouldn't do anything
   ros_parameter::Parameter<std::string> msg1 = pg.get<std::string>("~msg1");
   msg1.data("Hello");
 
+  // Should print ~msg1 + ~msg2
   ros_parameter::Parameter<std::string> msg2 = pg.get<std::string>("~msg2");
-  msg2.data("World!!");
+  std::string msg = msg2.data();
+  msg2.data(msg + "!");
 
   ROS_INFO("----------");
 }
@@ -104,10 +114,11 @@ int main(int argc, char **argv)
 
   // There may be a distinction between on change and on update
   pg.on_change(on_group_change);
+  pg.on_update(on_group_update);
 
   // Handle standalone parameter 
   ros_parameter::Parameter<int> int1("~int1", 0);
-  int1.on_change(on_parameter_change<int>);
+  int1.on_change(on_parameter_change_true<int>);
   int1.on_update(on_parameter_update<int>);
 
   // Handle standalone parameter which doesn't change
