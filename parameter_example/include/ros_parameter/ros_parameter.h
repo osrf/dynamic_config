@@ -40,8 +40,47 @@
 #include <boost/function.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/variant.hpp>
+#include <boost/any.hpp>
 
 namespace ros_parameter {
+
+  namespace { // anonymous
+
+    typedef boost::variant<bool, int, double, std::string> DataTypes;
+    typedef std::map<std::string, boost::any> GlobalDataMap;
+    GlobalDataMap g_dataMap;
+
+    template <typename T>
+    boost::shared_ptr<T> get_global_data_ptr(const std::string& name) {
+      boost::any thePtr = g_dataMap[name];
+      return boost::any_cast<boost::shared_ptr<T> >(thePtr);
+    }
+
+    bool has_global_data(const std::string& name) {
+      return g_dataMap.find(name) != g_dataMap.end();
+    }
+
+    template <typename T>
+    T& get_global_data(const std::string& name) {
+      if ( !has_global_data(name) ) {
+        T default_value;
+        set_global_data(name, default_value);
+      }
+      return *get_global_data_ptr<T>(name);
+    }
+
+    template <typename T>
+    void set_global_data_ptr(const std::string& name, const boost::shared_ptr<T>& ptr) {
+      g_dataMap[name] = ptr;
+    }
+
+    template <typename T>
+    void set_global_data(const std::string& name, const T& data) {
+      boost::shared_ptr<T> ptr(new T(data));
+      set_global_data_ptr(name, ptr);
+    }
+
+  } // anonyous
 
   template <class T>
   class Parameter
@@ -54,10 +93,15 @@ namespace ros_parameter {
     Parameter() : impl_(new Impl) {}
     ~Parameter() {}
 
+    Parameter(const std::string &name)
+    : impl_(new Impl) {
+      impl_->name_ = name;
+    }
+
     Parameter(const std::string &name, const T &default_value)
     : impl_(new Impl) {
       impl_->name_ = name;
-      impl_->data_ = Ptr(new T(default_value));
+      set_global_data(name, default_value);
     }
 
     Parameter(const Parameter<T> &other) {
@@ -77,19 +121,19 @@ namespace ros_parameter {
     }
 
     T data() const {
-      return *(impl_->data_);
+      return get_global_data<T>(impl_->name_);
     }
 
     void get_data(T &data) {
-      data = *(impl_->data_);
+      data = get_global_data<T>(impl_->name_);
     }
 
     Ptr data_ptr() {
-      return impl_->data_;
+      return get_global_data<T>(impl_->name_);
     }
 
     void data_ptr(const Ptr &data_ptr) {
-      data_ptr = impl_->data_;
+      set_global_data_ptr(data_ptr);
     }
 
     bool data(const T &data) {
@@ -125,14 +169,13 @@ namespace ros_parameter {
     }
 
     void update_data(const T& data) {
-      *(impl_->data_) = data;
+      set_global_data(impl_->name_, data);
       if (impl_->on_update_callback_)
         impl_->on_update_callback_(*this);      
     }
 
     struct Impl {
       std::string name_;
-      Ptr data_;
       OnChangeCallbackType on_change_callback_;
       OnUpdateCallbackType on_update_callback_;
     };
@@ -143,7 +186,7 @@ namespace ros_parameter {
   class ParameterGroup
   {
   public:
-    typedef boost::variant<bool, int, double, std::string> DataType;
+    typedef DataTypes DataType;
     typedef boost::function<void(const ParameterGroup&, std::map<std::string,DataType>&, 
                             std::map<std::string, bool>&)> OnChangeCallbackType;
     typedef boost::function<void(ParameterGroup&, std::map<std::string, bool>&)> OnUpdateCallbackType;

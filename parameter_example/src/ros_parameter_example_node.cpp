@@ -5,14 +5,6 @@
 
 ros::Publisher pub;
 
-// Right now it returns void, but you could also have a function which returns a
-// std::map<string, bool> which maps parameter names to True if the change is
-// accepted, False if it is rejected This allows the user's code to reject
-// the proposed parameter change. You could imagine that you do the change
-// acceptance based on state of pg after the function returns, i.e. if the
-// parameter values are unchanged by the callback, then the user has accepted
-// them. But this would prevent the user from rejecting a value which received
-// an update, yet was not changed.
 void on_group_change(const ros_parameter::ParameterGroup &pg, 
                      std::map<std::string, ros_parameter::ParameterGroup::DataType> &newData,
                      std::map<std::string, bool> &changed)
@@ -63,24 +55,31 @@ void on_parameter_update(ros_parameter::Parameter<T>& param)
   ROS_INFO_STREAM(param.name() << " updated " << param.data());
 }
 
+int counter = 0;
+
 void timer_callback(const ros::TimerEvent &event,
                     ros_parameter::Parameter<int> int1,
                     ros_parameter::Parameter<int> int2,
                     ros_parameter::ParameterGroup pg)
 {
   // Should increment the data value
-  int i = int1.data();
-  ++i;
-  if (!int1.data(i))
-    ROS_INFO_STREAM("Can't change " << int1.name());
+  ++counter;
+  if (!int1.data(counter))
+  ROS_INFO_STREAM("Can't change " << int1.name());
 
-  // Should fail
-  if (!int2.data(0))
-    ROS_INFO_STREAM("Can't change " << int2.name());
+  // ~int1 should return data == i
+  ROS_ASSERT( counter == int1.data() );
+
+  // If I create a second parameter, both should return the same data
+  ros_parameter::Parameter<int> int1_bis("~int1");
+  ROS_ASSERT( int1.data() == int1_bis.data() );
+
+  // Should return false
+  ROS_ASSERT( false == int2.data(0) );
 
   // Update ~msg1. This shouldn't do anything
   ros_parameter::Parameter<std::string> msg1 = pg.get<std::string>("~msg1");
-  msg1.data("Hello");
+  ROS_ASSERT( false == msg1.data("This change doen't take effect") );
 
   // Should print ~msg1 + ~msg2
   ros_parameter::Parameter<std::string> msg2 = pg.get<std::string>("~msg2");
