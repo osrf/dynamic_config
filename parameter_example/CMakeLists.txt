@@ -56,6 +56,12 @@ target_link_libraries(rosparam_node
   ${Boost_LIBRARIES}
 )
 
+add_executable(ros_parameter_example_node src/ros_parameter_example_node.cpp)
+target_link_libraries(ros_parameter_example_node
+  ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
+)
+
 install(TARGETS parameter_example_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
