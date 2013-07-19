@@ -43,6 +43,8 @@
 #include <boost/any.hpp>
 #include <boost/signals2.hpp>
 
+#include "ros/this_node.h"
+
 namespace ros_parameter {
 
   template <typename T> class Parameter;
@@ -228,10 +230,19 @@ namespace ros_parameter {
                             std::map<std::string, bool>&)> OnChangeCallbackType;
     typedef boost::function<void(ParameterGroup&, std::map<std::string, bool>&)> OnUpdateCallbackType;
     typedef boost::variant<Parameter<bool>, Parameter<int>, Parameter<double>, Parameter<std::string> > ParameterType;
+    typedef std::map<std::string, ParameterType> Parameters;
 
-    ParameterGroup() : impl_(new Impl) {}
+    ParameterGroup()
+    : impl_(new Impl) {
+      impl_->namespace_ = ros::this_node::getNamespace();
+    }
 
-    ~ParameterGroup() {}
+    ParameterGroup(const std::string& nm)
+    : impl_(new Impl) {
+      impl_->namespace_ = nm;
+    }
+
+    ~ParameterGroup() { }
 
     ParameterGroup(const ParameterGroup &other) {
       impl_ = other.impl_;
@@ -247,6 +258,25 @@ namespace ros_parameter {
 
     bool operator!=(const ParameterGroup& r) {
       return !(*this == r);
+    }
+
+    const std::string& get_namespace() const {
+      return impl_->namespace_;
+    }
+
+    template <typename T>
+    Parameter<T> create_parameter(const std::string& name, const T& default_value) {
+      std::string ns = impl_->namespace_;
+      ns += ( *ns.rbegin() == '/' ? "" : "/" );
+      ns += name;
+
+      Parameter<T> param(ns, default_value);
+      impl_->parameters_[name] = param;
+
+      param.on_change(boost::bind(&ParameterGroup::parameter_on_change<T>, this, _1, _2));
+      param.on_update(boost::bind(&ParameterGroup::parameter_on_update<T>, this, _1));
+
+      return param;
     }
 
     template <typename T>
@@ -318,9 +348,10 @@ namespace ros_parameter {
     }
 
     struct Impl {
+      std::string namespace_;
       OnChangeCallbackType on_change_callback_;
       OnUpdateCallbackType on_update_callback_;
-      std::map<std::string, ParameterType> parameters_;
+      Parameters parameters_;
     };
     typedef boost::shared_ptr<Impl> ImplPtr;
     ImplPtr impl_;
