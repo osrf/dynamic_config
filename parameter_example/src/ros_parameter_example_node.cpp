@@ -49,6 +49,12 @@ bool on_parameter_change_false(const ros_parameter::Parameter<T>& param, const T
   return false;
 }
 
+int on_parameter_update_int_data;
+void on_parameter_update_int(ros_parameter::Parameter<int>& param)
+{
+  on_parameter_update_int_data = param.data();
+}
+
 template <typename T>
 void on_parameter_update(ros_parameter::Parameter<T>& param)
 {
@@ -62,17 +68,30 @@ void timer_callback(const ros::TimerEvent &event,
                     ros_parameter::Parameter<int> int2,
                     ros_parameter::ParameterGroup pg)
 {
+  // Copy constructor
+  ros_parameter::Parameter<int> int1_copy(int1);
+  ROS_ASSERT( int1 == int1_copy );
+  ROS_ASSERT( !( int1 != int1_copy ) );
+
+  // Assign operator
+  ros_parameter::Parameter<int> int1_copy2 = int1;
+  ROS_ASSERT( int1 == int1_copy2 );
+  ROS_ASSERT( !( int1 != int1_copy2 ) );  
+
   // Should increment the data value
   ++counter;
-  if (!int1.data(counter))
-  ROS_INFO_STREAM("Can't change " << int1.name());
+  ROS_ASSERT( int1.data(counter) );
+  ROS_ASSERT( counter == on_parameter_update_int_data );
 
   // ~int1 should return data == i
   ROS_ASSERT( counter == int1.data() );
 
-  // If I create a second parameter, both should return the same data
+  // If I create a second parameter, both should return the same data but 
+  // they are different Parameters
   ros_parameter::Parameter<int> int1_bis("~int1");
   ROS_ASSERT( int1.data() == int1_bis.data() );
+  ROS_ASSERT( int1 != int1_bis );
+  ROS_ASSERT( !( int1 == int1_bis ) );  
 
   // Should return false
   ROS_ASSERT( false == int2.data(0) );
@@ -85,6 +104,10 @@ void timer_callback(const ros::TimerEvent &event,
   ros_parameter::Parameter<std::string> msg2 = pg.get<std::string>("~msg2");
   std::string msg = msg2.data();
   msg2.data(msg + "!");
+
+  // If 'int1_bis' set a new value 'int1' should notify the change
+  // int1_bis.data(-1);
+  // ROS_ASSERT( -1 == on_parameter_update_int_data);
 
   ROS_INFO("----------");
 }
@@ -118,7 +141,7 @@ int main(int argc, char **argv)
   // Handle standalone parameter 
   ros_parameter::Parameter<int> int1("~int1", 0);
   int1.on_change(on_parameter_change_true<int>);
-  int1.on_update(on_parameter_update<int>);
+  int1.on_update(on_parameter_update_int);
 
   // Handle standalone parameter which doesn't change
   ros_parameter::Parameter<int> int2("~int2", 0);

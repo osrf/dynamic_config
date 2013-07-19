@@ -41,6 +41,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/variant.hpp>
 #include <boost/any.hpp>
+#include <boost/signals2.hpp>
 
 namespace ros_parameter {
 
@@ -48,39 +49,43 @@ namespace ros_parameter {
 
     typedef boost::variant<bool, int, double, std::string> DataTypes;
     typedef std::map<std::string, boost::any> GlobalDataMap;
-    GlobalDataMap g_dataMap;
+    typedef std::map<std::string, boost::any> GlobalParameters;
 
     template <typename T>
-    boost::shared_ptr<T> get_global_data_ptr(const std::string& name) {
-      boost::any thePtr = g_dataMap[name];
-      return boost::any_cast<boost::shared_ptr<T> >(thePtr);
-    }
+    struct GlobalParameter {
+      GlobalParameter(const std::string& name) 
+      : name_(name)
+      , data_ptr_(new T) 
+      { }
 
-    bool has_global_data(const std::string& name) {
-      return g_dataMap.find(name) != g_dataMap.end();
-    }
+      const std::string name_;
+      boost::shared_ptr<T> data_ptr_;
+      boost::signals2::signal<void ()> on_change_callbacks_;
+      boost::signals2::signal<void ()> on_update_callbacks_;
+    };
 
-    template <typename T>
-    T& get_global_data(const std::string& name) {
-      if ( !has_global_data(name) ) {
-        T default_value;
-        set_global_data(name, default_value);
-      }
-      return *get_global_data_ptr<T>(name);
-    }
+    GlobalParameters g_parameters;
 
     template <typename T>
-    void set_global_data_ptr(const std::string& name, const boost::shared_ptr<T>& ptr) {
-      g_dataMap[name] = ptr;
+    inline boost::shared_ptr<GlobalParameter<T> > create_global_parameter(const std::string& name) {
+      boost::shared_ptr<GlobalParameter<T> > ptr(new GlobalParameter<T>(name));
+      g_parameters[name] = ptr;
+      return ptr;
     }
 
     template <typename T>
-    void set_global_data(const std::string& name, const T& data) {
-      boost::shared_ptr<T> ptr(new T(data));
-      set_global_data_ptr(name, ptr);
+    inline boost::shared_ptr<GlobalParameter<T> > cast_parameter_from_any(const boost::any& any_param) {
+      return boost::any_cast<boost::shared_ptr<GlobalParameter<T> > >(any_param);
     }
 
-  } // anonyous
+    template <typename T>
+    boost::shared_ptr<GlobalParameter<T> > get_global_parameter(const std::string& name) {
+      GlobalParameters::iterator it = g_parameters.find(name);
+      GlobalParameters::iterator end = g_parameters.end();
+      return ( it == end ? create_global_parameter<T>(name) : cast_parameter_from_any<T>(it->second) );
+    }
+
+  } // anonymous
 
   template <class T>
   class Parameter
@@ -95,13 +100,13 @@ namespace ros_parameter {
 
     Parameter(const std::string &name)
     : impl_(new Impl) {
-      impl_->name_ = name;
+      impl_->g_param_ = get_global_parameter<T>(name);
     }
 
     Parameter(const std::string &name, const T &default_value)
     : impl_(new Impl) {
-      impl_->name_ = name;
-      set_global_data(name, default_value);
+      impl_->g_param_ = get_global_parameter<T>(name);
+      get_data_ptr_helper().reset(new T(default_value));
     }
 
     Parameter(const Parameter<T> &other) {
@@ -121,19 +126,19 @@ namespace ros_parameter {
     }
 
     T data() const {
-      return get_global_data<T>(impl_->name_);
+      return *get_data_ptr_helper();
     }
 
     void get_data(T &data) {
-      data = get_global_data<T>(impl_->name_);
+      data = *get_data_ptr_helper();
     }
 
     Ptr data_ptr() {
-      return get_global_data<T>(impl_->name_);
+      return get_data_ptr_helper();
     }
 
     void data_ptr(const Ptr &data_ptr) {
-      set_global_data_ptr(data_ptr);
+      impl_->g_param_->data_ptr_ = data_ptr;      
     }
 
     bool data(const T &data) {
@@ -144,11 +149,7 @@ namespace ros_parameter {
     }
 
     std::string name() const {
-      return impl_->name_;
-    }
-
-    void name(const std::string &name) {
-      name = impl_.name_;
+      return get_name_helper();
     }
 
     void on_change(OnChangeCallbackType callback) {
@@ -169,13 +170,25 @@ namespace ros_parameter {
     }
 
     void update_data(const T& data) {
-      set_global_data(impl_->name_, data);
+      get_data_ptr_helper().reset(new T(data));
       if (impl_->on_update_callback_)
         impl_->on_update_callback_(*this);      
     }
 
+    inline boost::shared_ptr<T>& get_data_ptr_helper() {
+      return impl_->g_param_->data_ptr_;
+    }
+
+    inline const boost::shared_ptr<T>& get_data_ptr_helper() const {
+      return impl_->g_param_->data_ptr_;
+    }
+
+    inline const std::string& get_name_helper() const {
+      return impl_->g_param_->name_;
+    }
+
     struct Impl {
-      std::string name_;
+      boost::shared_ptr<GlobalParameter<T> > g_param_;
       OnChangeCallbackType on_change_callback_;
       OnUpdateCallbackType on_update_callback_;
     };
