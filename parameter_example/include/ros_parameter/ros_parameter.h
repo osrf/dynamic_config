@@ -55,29 +55,72 @@ namespace ros_parameter {
     typedef std::map<std::string, boost::any> GlobalDataMap;
     typedef std::map<std::string, boost::any> GlobalParameters;
 
-    struct all_true {
-      typedef bool result_type;
-      template<typename InputIterator>
-      bool operator()(InputIterator first, InputIterator last) const
-      {
-        for (; first != last; ++first) {
-          if (!(*first)) return false;
-        }
-        return true;
-      }
-    };
-
     template <typename T>
-    struct GlobalParameter {
+    class GlobalParameter {
+    private:
+      struct all_true {
+        typedef bool result_type;
+        template<typename InputIterator>
+        bool operator()(InputIterator first, InputIterator last) const {
+          for (; first != last; ++first) {
+            if (!(*first)) return false;
+          }
+          return true;
+        }
+      };
+
+    public:
+      typedef boost::signals2::connection Connection;
+      typedef boost::signals2::signal<bool (const Parameter<T>&, const T&), all_true> OnChangeCallbacks;
+      typedef typename OnChangeCallbacks::slot_type OnChangeCallback;
+      typedef boost::signals2::signal<void (Parameter<T>&)> OnUpdateCallbacks;
+      typedef typename OnUpdateCallbacks::slot_type OnUpdateCallback;
+
       GlobalParameter(const std::string& name) 
       : name_(name)
       , data_ptr_(new T) 
       { }
 
+      GlobalParameter(const std::string& name, const T& data)
+      : name_(name)
+      , data_ptr_(new T(data))
+      { }
+
+      const std::string& name() const
+      { return name_; }
+
+      const T& get() const
+      { return *data_ptr_; }
+
+      const boost::shared_ptr<T>& get_ptr() const
+      { return data_ptr_; }
+
+      bool set(const boost::shared_ptr<T> data_ptr) {
+        Parameter<T> param(name_);
+        bool changed = on_change_callbacks_(param, *data_ptr);
+        if (changed) {
+          data_ptr_ = data_ptr;
+          on_update_callbacks_(param);
+        }
+        return changed;
+      }
+
+      bool set(const T& data) {
+        boost::shared_ptr<T> data_ptr(new T(data));
+        return set(data_ptr);
+      }
+
+      Connection connect_on_change_callback(OnChangeCallback callback)
+      { return on_change_callbacks_.connect(callback); }
+
+      Connection connect_on_update_callback(OnUpdateCallback callback)
+      { return on_update_callbacks_.connect(callback); }
+
+    private:
       const std::string name_;
       boost::shared_ptr<T> data_ptr_;
-      boost::signals2::signal<bool (const Parameter<T>&, const T&), all_true> on_change_callbacks_;
-      boost::signals2::signal<void (Parameter<T>&)> on_update_callbacks_;
+      OnChangeCallbacks on_change_callbacks_;
+      OnUpdateCallbacks on_update_callbacks_;
     };
 
     GlobalParameters g_parameters;
@@ -112,7 +155,6 @@ namespace ros_parameter {
     typedef boost::function<void (Parameter<T>&)> OnUpdateCallbackType;
 
     Parameter() : impl_(new Impl) {}
-    ~Parameter() {}
 
     Parameter(const std::string &name)
     : impl_(new Impl) {
@@ -122,101 +164,56 @@ namespace ros_parameter {
     Parameter(const std::string &name, const T &default_value)
     : impl_(new Impl) {
       impl_->g_param_ = get_global_parameter<T>(name);
-      get_data_ptr_helper().reset(new T(default_value));
+      impl_->g_param_->set(default_value);
     }
 
-    Parameter(const Parameter<T> &other) {
-      impl_ = other.impl_;
-    }
+    Parameter(const Parameter<T> &other) 
+    { impl_ = other.impl_; }
 
-    Parameter<T>& operator=(const Parameter<T>& r) {
-      impl_ = r.impl_;
-    }
+    ~Parameter() { }
 
-    bool operator==(const Parameter<T>& r) {
-      return impl_ == r.impl_;
-    }
+    Parameter<T>& operator=(const Parameter<T>& r) 
+    { impl_ = r.impl_; }
 
-    bool operator!=(const Parameter<T>& r) {
-      return !(*this == r);
-    }
+    bool operator==(const Parameter<T>& r) 
+    { return impl_ == r.impl_; }
 
-    T data() const {
-      return *get_data_ptr_helper();
-    }
+    bool operator!=(const Parameter<T>& r) 
+    { return !(*this == r); }
 
-    void get_data(T &data) {
-      data = *get_data_ptr_helper();
-    }
+    std::string name() const 
+    { return impl_->g_param_->name(); }
 
-    Ptr data_ptr() {
-      return get_data_ptr_helper();
-    }
+    T data() const 
+    { return impl_->g_param_->get(); }
 
-    void data_ptr(const Ptr &data_ptr) {
-      impl_->g_param_->data_ptr_ = data_ptr;      
-    }
+    void get_data(T &data) const
+    { data = impl_->g_param_->get(); }
 
-    bool data(const T &data) {
-      bool change = change_data(data);      
-      if (change)
-        update_data(data);
-      return change;
-    }
+    Ptr data_ptr() 
+    { return impl_->g_param_->get_ptr(); }
 
-    std::string name() const {
-      return get_name_helper();
-    }
+    bool data_ptr(const Ptr &data_ptr) 
+    { return impl_->g_param_->set(data_ptr); }
 
-    void on_change(OnChangeCallbackType callback) {
-      impl_->on_change_scoped_connection =
-        get_on_change_callbacks_helper().connect(callback);
-    }
+    bool data(const T &data) 
+    { return impl_->g_param_->set(data); }
 
-    void on_update(OnUpdateCallbackType callback) {
-      impl_->on_update_scoped_connection = 
-        get_on_update_callbacks_helper().connect(callback);
-    }
+    void on_change(OnChangeCallbackType callback) 
+    { impl_->on_change_connection = impl_->g_param_->connect_on_change_callback(callback); }
+
+    void on_update(OnUpdateCallbackType callback) 
+    { impl_->on_update_connection = impl_->g_param_->connect_on_update_callback(callback); }
 
   private:
-
-    bool change_data(const T& data) {
-      return get_on_change_callbacks_helper()(*this, data);
-    }
-
-    void update_data(const T& data) {
-      get_data_ptr_helper().reset(new T(data));
-      get_on_update_callbacks_helper()(*this);
-    }
-
-    inline boost::shared_ptr<T>& get_data_ptr_helper() {
-      return impl_->g_param_->data_ptr_;
-    }
-
-    inline const boost::shared_ptr<T>& get_data_ptr_helper() const {
-      return impl_->g_param_->data_ptr_;
-    }
-
-    inline const std::string& get_name_helper() const {
-      return impl_->g_param_->name_;
-    }
-
-    inline boost::signals2::signal<bool (const Parameter<T>&, const T&), all_true>& get_on_change_callbacks_helper() {
-      return impl_->g_param_->on_change_callbacks_;
-    }
-
-    inline boost::signals2::signal<void (Parameter<T>&)>& get_on_update_callbacks_helper() {
-      return impl_->g_param_->on_update_callbacks_;
-    }
-
     struct Impl {
+      ~Impl() {
+        on_change_connection.disconnect();
+        on_update_connection.disconnect();
+      }
       boost::shared_ptr<GlobalParameter<T> > g_param_;
- 
-      OnChangeCallbackType on_change_callback_;
-      OnUpdateCallbackType on_update_callback_;
-
-      boost::signals2::scoped_connection on_change_scoped_connection;
-      boost::signals2::scoped_connection on_update_scoped_connection;
+      typename GlobalParameter<T>::Connection on_change_connection;
+      typename GlobalParameter<T>::Connection on_update_connection;
     };
     typedef boost::shared_ptr<Impl> ImplPtr;
     ImplPtr impl_;    
