@@ -22,6 +22,14 @@ add_service_files(
   SubscribeParam.srv
   UnsubscribeParam.srv
   ParamEvent.srv
+  Set.srv
+  Get.srv
+  AddOnUpdate.srv
+  RemoveOnUpdate.srv
+  OnUpdate.srv
+  AddOnChange.srv
+  RemoveOnChange.srv
+  OnChange.srv
 )
 
 generate_messages(
@@ -64,6 +72,15 @@ target_link_libraries(ros_parameter_example_node
 
 add_executable(ros_parameter_group_example_node src/ros_parameter_group_example_node.cpp)
 target_link_libraries(ros_parameter_group_example_node
+  ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
+)
+
+add_executable(node_a src/consensus/node_a.cpp 
+               src/parameter_server/parameter_server.cpp
+               src/ros_parameter/parameter_server_listener.cpp
+)
+target_link_libraries(node_a
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
 )

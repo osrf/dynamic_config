@@ -1,0 +1,5 @@
+string name
+uint8[] data
+string no_call
+---
+bool accepted

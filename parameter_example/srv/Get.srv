@@ -1,0 +1,5 @@
+string name
+uint8[] data
+string on_update_service
+---
+uint8[] data

@@ -45,7 +45,28 @@
 
 #include "ros/this_node.h"
 
+#include "parameter_example/Get.h"
+
 namespace ros_parameter {
+
+  namespace serialization {
+
+    template <typename T>
+    void serializeValue(const T& data, std::vector<uint8_t>& buffer)
+    {
+      buffer.resize(ros::serialization::serializationLength(data));
+      ros::serialization::OStream ostream(&buffer[0], buffer.size());
+      ros::serialization::serialize(ostream, data);
+    }
+
+    template < typename T >
+    void deserializeValue(std::vector<uint8_t>& data, T& output)
+    {
+      ros::serialization::IStream istream(&data[0], data.size());
+      ros::serialization::Serializer<T>::read(istream, output);  
+    }
+
+  } // serialization
 
   template <typename T> class Parameter;
 
@@ -62,9 +83,8 @@ namespace ros_parameter {
         typedef bool result_type;
         template<typename InputIterator>
         bool operator()(InputIterator first, InputIterator last) const {
-          for (; first != last; ++first) {
+          for (; first != last; ++first)
             if (!(*first)) return false;
-          }
           return true;
         }
       };
@@ -84,7 +104,12 @@ namespace ros_parameter {
       GlobalParameter(const std::string& name, const T& data)
       : name_(name)
       , data_ptr_(new T(data))
-      { }
+      { 
+        parameter_example::Get srv;
+        srv.request.name = name;
+        serialization::serializeValue(data, srv.request.data);
+        srv.request.on_update_service = "the_on_update_service";
+      }
 
       const std::string& name() const
       { return name_; }
