@@ -45,28 +45,10 @@
 
 #include "ros/this_node.h"
 
-#include "parameter_example/Get.h"
+#include "ros_parameter/parameter_server_client.h"
+#include "ros_parameter/parameter_server_listener.h"
 
 namespace ros_parameter {
-
-  namespace serialization {
-
-    template <typename T>
-    void serializeValue(const T& data, std::vector<uint8_t>& buffer)
-    {
-      buffer.resize(ros::serialization::serializationLength(data));
-      ros::serialization::OStream ostream(&buffer[0], buffer.size());
-      ros::serialization::serialize(ostream, data);
-    }
-
-    template < typename T >
-    void deserializeValue(std::vector<uint8_t>& data, T& output)
-    {
-      ros::serialization::IStream istream(&data[0], data.size());
-      ros::serialization::Serializer<T>::read(istream, output);  
-    }
-
-  } // serialization
 
   template <typename T> class Parameter;
 
@@ -98,17 +80,18 @@ namespace ros_parameter {
 
       GlobalParameter(const std::string& name) 
       : name_(name)
-      , data_ptr_(new T) 
-      { }
-
-      GlobalParameter(const std::string& name, const T& data)
-      : name_(name)
-      , data_ptr_(new T(data))
       { 
-        parameter_example::Get srv;
-        srv.request.name = name;
-        serialization::serializeValue(data, srv.request.data);
-        srv.request.on_update_service = "the_on_update_service";
+        T data;
+        get_parameter(name, data, data);
+        data_ptr_.reset(new T(data));
+      }
+
+      GlobalParameter(const std::string& name, const T& default_data)
+      : name_(name)
+      { 
+        T data;
+        get_parameter(name, default_data, data);
+        data_ptr_.reset(new T(data));
       }
 
       const std::string& name() const
@@ -151,22 +134,28 @@ namespace ros_parameter {
     GlobalParameters g_parameters;
 
     template <typename T>
-    inline boost::shared_ptr<GlobalParameter<T> > create_global_parameter(const std::string& name) {
-      boost::shared_ptr<GlobalParameter<T> > ptr(new GlobalParameter<T>(name));
-      g_parameters[name] = ptr;
-      return ptr;
-    }
-
-    template <typename T>
-    inline boost::shared_ptr<GlobalParameter<T> > cast_parameter_from_any(const boost::any& any_param) {
-      return boost::any_cast<boost::shared_ptr<GlobalParameter<T> > >(any_param);
-    }
-
-    template <typename T>
     boost::shared_ptr<GlobalParameter<T> > get_global_parameter(const std::string& name) {
       GlobalParameters::iterator it = g_parameters.find(name);
       GlobalParameters::iterator end = g_parameters.end();
-      return ( it == end ? create_global_parameter<T>(name) : cast_parameter_from_any<T>(it->second) );
+
+      if (it == end ) {
+        ROS_INFO_STREAM("Creating param " << name);
+        boost::shared_ptr<GlobalParameter<T> > shared(new GlobalParameter<T>(name));
+        boost::weak_ptr<GlobalParameter<T> > weak(shared);
+        g_parameters[name] = weak;
+        return shared;
+      }
+
+      boost::weak_ptr<GlobalParameter<T> > weak = boost::any_cast<boost::weak_ptr<GlobalParameter<T> > >(it->second);
+      if (weak.expired()) {
+        ROS_INFO_STREAM("Creating param " << name);
+        boost::shared_ptr<GlobalParameter<T> > shared(new GlobalParameter<T>(name));
+        weak = shared;
+        g_parameters[name] = weak;
+        return shared;
+      }
+
+      return weak.lock();
     }
 
   } // anonymous

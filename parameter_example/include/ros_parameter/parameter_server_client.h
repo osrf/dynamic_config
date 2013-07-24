@@ -44,6 +44,31 @@
 
 namespace ros_parameter {
 
+  namespace serialization {
+
+    template <typename T>
+    void serialize(const T& data, std::vector<uint8_t>& buffer)
+    {
+      buffer.resize(ros::serialization::serializationLength(data));
+      ros::serialization::OStream ostream(&buffer[0], buffer.size());
+      ros::serialization::serialize(ostream, data);
+    }
+
+    void serialize(const std::vector<uint8_t>& data, std::vector<uint8_t>& buffer)
+    { buffer = data; }
+
+    template < typename T >
+    void deserialize(std::vector<uint8_t>& data, T& output)
+    {
+      ros::serialization::IStream istream(&data[0], data.size());
+      ros::serialization::Serializer<T>::read(istream, output);
+    }
+
+    void deserialize(std::vector<uint8_t>& data, std::vector<uint8_t>& output)
+    { output = data; }
+
+  } // serializations
+
   namespace {
 
     template <class Srv>
@@ -69,9 +94,12 @@ namespace ros_parameter {
 template <typename Data>
 bool set_parameter(const std::string& name, const Data& data, const std::string& no_call)
 {
+  std::vector<uint8_t> data_ser;
+  serialization::serialize(data, data_ser);
+
   parameter_example::Set srv;
   srv.request.name = name;
-  srv.request.data = data;
+  srv.request.data = data_ser;
   srv.request.no_call = no_call;
 
   return call_service("/parameters_server/set", srv) && srv.response.accepted; 
@@ -82,13 +110,16 @@ bool get_parameter(const std::string& name,
                    const Data& default_data,
                    Data& data)
 {
+  std::vector<uint8_t> default_data_ser;
+  serialization::serialize(default_data, default_data_ser);
+
   parameter_example::Get srv;
   srv.request.name = name;
-  srv.request.data = default_data;
+  srv.request.data = default_data_ser;
 
   bool successful = call_service("/parameters_server/get", srv);
   if (successful)
-    data = srv.response.data;
+    serialization::deserialize(srv.response.data, data);
   return successful;
 }
 
