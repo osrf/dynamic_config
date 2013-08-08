@@ -1,0 +1,5 @@
+string name
+uint8[] actual
+uint8[] candidate
+---
+bool accepted
