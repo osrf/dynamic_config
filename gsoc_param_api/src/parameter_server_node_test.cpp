@@ -66,43 +66,43 @@ bool do_not_accept_parameter_callback(const std::vector<uint8_t>& old, const std
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "parameter_server_node_test");
-  gsoc::param::init();
+  gsoc::param::ParamServerProxy prx;
 
   gsoc::param_server::init("param_server");
   ros::AsyncSpinner spinner(0);
   spinner.start();
 
   // Set a parameter
-  ROS_ASSERT(gsoc::param::set("param1", tenOnes));
-  ROS_ASSERT(gsoc::param::has("param1"));
+  ROS_ASSERT(prx.set("param1", tenOnes));
+  ROS_ASSERT(prx.has("param1"));
 
   // Get existent parameter
   {
     std::vector<uint8_t> result;
-    ROS_ASSERT(gsoc::param::get("param1", result));
+    ROS_ASSERT(prx.get("param1", result));
     ROS_ASSERT( tenOnes == result );
-    ROS_ASSERT(!gsoc::param::get("param2", result));
+    ROS_ASSERT(!prx.get("param2", result));
   }
 
   // Delete a parameter
-  ROS_ASSERT(gsoc::param::del("param1"));
-  ROS_ASSERT(!gsoc::param::has("param1"));
+  ROS_ASSERT(prx.del("param1"));
+  ROS_ASSERT(!prx.has("param1"));
 
   // Delete a non existent parameter
-  ROS_ASSERT(!gsoc::param::del("param1"));
+  ROS_ASSERT(!prx.del("param1"));
 
   // Add an updater and set a new data
   {
     update_parameter_callback_called = false;
-    ROS_ASSERT(gsoc::param::set("param1", tenOnes));
-    ROS_ASSERT(gsoc::param::addUpdater("param1", update_parameter_callback));
-    ROS_ASSERT(gsoc::param::set("param1", tenTwos));
+    ROS_ASSERT(prx.set("param1", tenOnes));
+    ROS_ASSERT(prx.addUpdater("param1", update_parameter_callback));
+    ROS_ASSERT(prx.set("param1", tenTwos));
     ROS_ASSERT(update_parameter_callback_called);
 
     // Remove an updater
     update_parameter_callback_called = false;
-    ROS_ASSERT(gsoc::param::removeUpdater("param1"));
-    ROS_ASSERT(gsoc::param::set("param1", tenOnes));
+    ROS_ASSERT(prx.removeUpdater("param1"));
+    ROS_ASSERT(prx.set("param1", tenOnes));
     ROS_ASSERT(!update_parameter_callback_called);
   }
 
@@ -110,26 +110,26 @@ int main(int argc, char **argv)
   {
     std::vector<uint8_t> result;
     ros::NodeHandle n("~");
-    ROS_ASSERT(gsoc::param::set("param1", tenOnes));
-    ROS_ASSERT(gsoc::param::addAcceptor("param1", accept_parameter_callback));
-    ROS_ASSERT(gsoc::param::set("param1", tenTwos));
-    ROS_ASSERT(gsoc::param::get("param1", result));
+    ROS_ASSERT(prx.set("param1", tenOnes));
+    ROS_ASSERT(prx.addAcceptor("param1", accept_parameter_callback));
+    ROS_ASSERT(prx.set("param1", tenTwos));
+    ROS_ASSERT(prx.get("param1", result));
     ROS_ASSERT(tenTwos == result);
 
     // Adding a second callback should fail
-    ROS_ASSERT(!gsoc::param::addAcceptor("param1", do_not_accept_parameter_callback));
+    ROS_ASSERT(!prx.addAcceptor("param1", do_not_accept_parameter_callback));
 
     // Remove the callback
-    ROS_ASSERT(gsoc::param::removeAcceptor("param1"));
+    ROS_ASSERT(prx.removeAcceptor("param1"));
 
     // Remove again the callback should fail
-    ROS_ASSERT(!gsoc::param::removeAcceptor("param1"));
+    ROS_ASSERT(!prx.removeAcceptor("param1"));
 
     // Add not acceptant callback
-    ROS_ASSERT(gsoc::param::set("param1", tenOnes));
-    ROS_ASSERT(gsoc::param::addAcceptor("param1", do_not_accept_parameter_callback));
-    ROS_ASSERT(!gsoc::param::set("param1", tenTwos));
-    ROS_ASSERT(gsoc::param::get("param1", result));
+    ROS_ASSERT(prx.set("param1", tenOnes));
+    ROS_ASSERT(prx.addAcceptor("param1", do_not_accept_parameter_callback));
+    ROS_ASSERT(!prx.set("param1", tenTwos));
+    ROS_ASSERT(prx.get("param1", result));
     ROS_ASSERT(tenOnes == result);
   }
 

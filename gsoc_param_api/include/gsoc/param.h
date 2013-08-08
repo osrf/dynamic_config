@@ -52,18 +52,158 @@ namespace gsoc {
 
     namespace {
 
+      ros::CallbackQueue g_param_callbackQueue;
+      boost::shared_ptr<ros::AsyncSpinner> g_param_spinner;
+
+    } // anonymous
+
+
+    class ParamServerProxy
+    {
       typedef boost::function<void (const std::vector<uint8_t>&, const std::vector<uint8_t>&)> UpdateCallback;
       typedef boost::function<bool (const std::vector<uint8_t>&, const std::vector<uint8_t>&)> AcceptCallback;
 
-      ros::ServiceServer updaterServer;
-      std::map<std::string, UpdateCallback>  updateCallbacks;
+    public:
+      ParamServerProxy(const std::string& namespc = "~")
+      {
+        ros::NodeHandle n(namespc);
+        n.setCallbackQueue(&g_param_callbackQueue);
+        updaterServer = n.advertiseService("update_parameter", &ParamServerProxy::update_parameter_callback, this);
+        acceptorServer = n.advertiseService("accept_parameter", &ParamServerProxy::accept_parameter_callback, this);
+        if (!g_param_spinner) {
+          g_param_spinner.reset(new ros::AsyncSpinner(1, &g_param_callbackQueue));
+          g_param_spinner->start();
+        }
+      }
 
-      ros::ServiceServer acceptorServer;
-      std::map<std::string, AcceptCallback> acceptCallbacks;
+      ~ParamServerProxy() 
+      { }
 
-      ros::CallbackQueue g_param_callbackQueue;
-      boost::shared_ptr<ros::AsyncSpinner> g_param_spinner;
-      // ros::AsyncSpinner spinner(1, &callbackQueue);
+      bool set(const std::string& name, const std::vector<uint8_t>& data)
+      {
+        gsoc_param_api::Set srv;
+        srv.request.name = name;
+        srv.request.data = data;
+        std::string srv_name = "/param_server/set";
+        if ( !ros::service::call(srv_name, srv) ) {
+          ROS_ERROR_STREAM("Service " << srv_name << " is not available");
+          return false;
+        }
+        return srv.response.accepted;
+      }
+
+      bool get(const std::string& name, std::vector<uint8_t>& data)
+      {
+        gsoc_param_api::Get srv;
+        srv.request.name = name;
+        std::string srv_name = "/param_server/get";
+        if ( !ros::service::call(srv_name, srv) ) {
+          ROS_ERROR_STREAM("Service " << srv_name << " is not available");
+          return false;
+        }
+        if (srv.response.exist)
+          data = srv.response.data;
+        return srv.response.exist;
+      }
+
+      bool has(const std::string& name)
+      {
+        gsoc_param_api::Has srv;
+        srv.request.name = name;
+        std::string srv_name = "/param_server/has";
+        if ( !ros::service::call(srv_name, srv) ) {
+          ROS_ERROR_STREAM("Service " << srv_name << " is not available");
+          return false;
+        }
+        return srv.response.exist;
+      }
+
+      bool del(const std::string& name)
+      {
+        gsoc_param_api::Del srv;
+        srv.request.name = name;
+        std::string srv_name = "/param_server/del";
+        if ( !ros::service::call(srv_name, srv) ) {
+          ROS_ERROR_STREAM("Service " << srv_name << " is not available");
+          return false;
+        }
+        return srv.response.deleted;
+      }
+
+
+      bool addUpdater(const std::string& name, UpdateCallback cb)
+      {
+        if (!updateCallbacks.insert(make_pair(name, cb)).second)
+          return false;
+
+        gsoc_param_api::AddUpdater srv;
+        srv.request.name = name;
+        srv.request.updater = updaterServer.getService();
+        std::string srv_name = "/param_server/add_updater";
+        if ( !ros::service::call(srv_name, srv) ) {
+          ROS_ERROR_STREAM("Service " << srv_name << " is not available");
+          return false;
+        }
+
+        if (!srv.response.added)
+          updateCallbacks.erase(name);
+
+        return srv.response.added;
+      }
+
+      bool removeUpdater(const std::string& name)
+      {
+        if (updateCallbacks.erase(name) != 1)
+          return false;
+
+        gsoc_param_api::RemoveUpdater srv;
+        srv.request.name = name;
+        srv.request.updater = updaterServer.getService();
+        std::string srv_name = "/param_server/remove_updater";
+        if ( !ros::service::call(srv_name, srv) ) {
+          ROS_ERROR_STREAM("Service " << srv_name << " is not available");
+          return false;
+        }
+        return srv.response.removed;
+      }
+
+      bool addAcceptor(const std::string& name, AcceptCallback cb)
+      {
+        if (!acceptCallbacks.insert(make_pair(name, cb)).second)
+          return false;
+
+        gsoc_param_api::AddAcceptor srv;
+        srv.request.name = name;
+        srv.request.acceptor = acceptorServer.getService();
+        std::string srv_name = "/param_server/add_acceptor";
+        if ( !ros::service::call(srv_name, srv) ) {
+          ROS_ERROR_STREAM("Service " << srv_name << " is not available");
+          return false;
+        }
+
+        if (!srv.response.added)
+          acceptCallbacks.erase(name);
+
+        return srv.response.added;
+      }
+
+      bool removeAcceptor(const std::string& name)
+      {
+        if (acceptCallbacks.erase(name) != 1)
+          return false;
+
+        gsoc_param_api::RemoveAcceptor srv;
+        srv.request.name = name;
+        srv.request.acceptor = acceptorServer.getService();
+        std::string srv_name = "/param_server/remove_acceptor";
+        if ( !ros::service::call(srv_name, srv) ) {
+          ROS_ERROR_STREAM("Service " << srv_name << " is not available");
+          return false;
+        }
+        return srv.response.removed;
+      }
+
+    private:
 
       bool update_parameter_callback(gsoc_param_api::UpdateParameter::Request  &req,
                                      gsoc_param_api::UpdateParameter::Response &res)
@@ -79,140 +219,14 @@ namespace gsoc {
         return true;
       }
 
-    } // anonymous
+      ros::ServiceServer updaterServer;
+      std::map<std::string, UpdateCallback>  updateCallbacks;
 
-    void init(const std::string& namespc = "~")
-    {
-      ros::NodeHandle n(namespc);
-      n.setCallbackQueue(&g_param_callbackQueue);
-      updaterServer = n.advertiseService("update_parameter", update_parameter_callback);
-      acceptorServer = n.advertiseService("accept_parameter", accept_parameter_callback);
-      g_param_spinner.reset(new ros::AsyncSpinner(1, &g_param_callbackQueue));
-      g_param_spinner->start();
-    }
+      ros::ServiceServer acceptorServer;
+      std::map<std::string, AcceptCallback> acceptCallbacks;
+    };
 
-    bool set(const std::string& name, const std::vector<uint8_t>& data)
-    {
-      gsoc_param_api::Set srv;
-      srv.request.name = name;
-      srv.request.data = data;
-      std::string srv_name = "/param_server/set";
-      if ( !ros::service::call(srv_name, srv) ) {
-        ROS_ERROR_STREAM("Service " << srv_name << " is not available");
-        return false;
-      }
-      return srv.response.accepted;
-    }
-
-    bool get(const std::string& name, std::vector<uint8_t>& data)
-    {
-      gsoc_param_api::Get srv;
-      srv.request.name = name;
-      std::string srv_name = "/param_server/get";
-      if ( !ros::service::call(srv_name, srv) ) {
-        ROS_ERROR_STREAM("Service " << srv_name << " is not available");
-        return false;
-      }
-      if (srv.response.exist)
-        data = srv.response.data;
-      return srv.response.exist;
-    }
-
-    bool has(const std::string& name)
-    {
-      gsoc_param_api::Has srv;
-      srv.request.name = name;
-      std::string srv_name = "/param_server/has";
-      if ( !ros::service::call(srv_name, srv) ) {
-        ROS_ERROR_STREAM("Service " << srv_name << " is not available");
-        return false;
-      }
-      return srv.response.exist;
-    }
-
-    bool del(const std::string& name)
-    {
-      gsoc_param_api::Del srv;
-      srv.request.name = name;
-      std::string srv_name = "/param_server/del";
-      if ( !ros::service::call(srv_name, srv) ) {
-        ROS_ERROR_STREAM("Service " << srv_name << " is not available");
-        return false;
-      }
-      return srv.response.deleted;
-    }
-
-    bool addUpdater(const std::string& name, UpdateCallback cb)
-    {
-      if (!updateCallbacks.insert(make_pair(name, cb)).second)
-        return false;
-
-      gsoc_param_api::AddUpdater srv;
-      srv.request.name = name;
-      srv.request.updater = updaterServer.getService();
-      std::string srv_name = "/param_server/add_updater";
-      if ( !ros::service::call(srv_name, srv) ) {
-        ROS_ERROR_STREAM("Service " << srv_name << " is not available");
-        return false;
-      }
-
-      if (!srv.response.added)
-        updateCallbacks.erase(name);
-
-      return srv.response.added;
-    }
-
-    bool removeUpdater(const std::string& name)
-    {
-      if (updateCallbacks.erase(name) != 1)
-        return false;
-
-      gsoc_param_api::RemoveUpdater srv;
-      srv.request.name = name;
-      srv.request.updater = updaterServer.getService();
-      std::string srv_name = "/param_server/remove_updater";
-      if ( !ros::service::call(srv_name, srv) ) {
-        ROS_ERROR_STREAM("Service " << srv_name << " is not available");
-        return false;
-      }
-      return srv.response.removed;
-    }
-
-    bool addAcceptor(const std::string& name, AcceptCallback cb)
-    {
-      if (!acceptCallbacks.insert(make_pair(name, cb)).second)
-        return false;
-
-      gsoc_param_api::AddAcceptor srv;
-      srv.request.name = name;
-      srv.request.acceptor = acceptorServer.getService();
-      std::string srv_name = "/param_server/add_acceptor";
-      if ( !ros::service::call(srv_name, srv) ) {
-        ROS_ERROR_STREAM("Service " << srv_name << " is not available");
-        return false;
-      }
-
-      if (!srv.response.added)
-        acceptCallbacks.erase(name);
-
-      return srv.response.added;
-    }
-
-    bool removeAcceptor(const std::string& name)
-    {
-      if (acceptCallbacks.erase(name) != 1)
-        return false;
-
-      gsoc_param_api::RemoveAcceptor srv;
-      srv.request.name = name;
-      srv.request.acceptor = acceptorServer.getService();
-      std::string srv_name = "/param_server/remove_acceptor";
-      if ( !ros::service::call(srv_name, srv) ) {
-        ROS_ERROR_STREAM("Service " << srv_name << " is not available");
-        return false;
-      }
-      return srv.response.removed;
-    }
+    typedef boost::shared_ptr<ParamServerProxy> ParamServerProxyPtr;
 
   } // param
 

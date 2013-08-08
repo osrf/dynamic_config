@@ -32,125 +32,19 @@
  *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
-#include <boost/signals2.hpp>
 
 #include <ros/ros.h>
-#include <ros/callback_queue.h>
-
-#include "gsoc_param_api/AcceptParameter.h"
-#include "gsoc_param_api/UpdateParameter.h"
-
-template <typename T>
-class Parameter
-{
-public:
-  Parameter(const std::string& name, const T& data) 
-  : name_(name)
-  , data_(data)
-  { }
-
-  const T& get() const
-  { return data_; }
-
-  const std::string& name() const
-  { return name_; }
-
-private:
-  std::string name_;
-  T data_;
-};
-
-class ParamNodeHandle
-{
-public:
-  ParamNodeHandle()
-  : impl_(new Impl)
-  { }
-
-  ParamNodeHandle(const std::string& namespc)
-  : impl_(new Impl(namespc))
-  { }
-
-  void createParameter() {}
-  void createAcceptant() {}
-  void createUpdater() {}
-
-private:
-  struct Impl {
-    Impl() 
-    : handle_("~")
-    , spinner_(0, &queue_) 
-    { init(); }
-
-    Impl(const std::string& namespc) 
-    : handle_(namespc)
-    , spinner_(0, &queue_) 
-    { init(); }
-
-    void init() {
-      handle_.setCallbackQueue(&queue_);
-      spinner_.start();
-      ROS_INFO_STREAM("Init " << handle_.getNamespace() << " parameters");
-    }
-
-    ros::NodeHandle handle_;
-    ros::CallbackQueue queue_;
-    ros::AsyncSpinner spinner_;
-  };
-
-  bool accept_parameter_callback(gsoc_param_api::AcceptParameter::Request  &req,
-                                 gsoc_param_api::AcceptParameter::Response &res)
-  {
-    return true;
-  }
-
-  bool node_a_update_parameter_callback(gsoc_param_api::UpdateParameter::Request  &req,
-                                        gsoc_param_api::UpdateParameter::Response &res)
-  {
-    return true;
-  }
-
-  typedef boost::shared_ptr<Impl> ImplPtr;
-  ImplPtr impl_;
-};
-
-
-class ParameterGroup
-{
-public:
-  ParameterGroup(const std::string& namespc)
-  : namespc_(namespc)
-  , handle_(namespc)
-  { }
-
-  template <typename T>
-  Parameter<T> getParameter(const std::string& name, const T& default_data) {
-    return Parameter<T>(name, default_data);
-  }
-
-private:
-  std::string namespc_;
-  ros::NodeHandle handle_;
-};
+#include "gsoc/param.h"
+#include "gsoc/param_server.h" 
 
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "parameter_example_node");
 
-  ParamNodeHandle node_a_handle("/node_a");
-  ParamNodeHandle node_b_handle("/node_b");
+  gsoc::param::ParamServerProxy prx("/node_a");
 
-  // Create a local copy of a parameter with a default value
-  {
-    ParameterGroup group("/node_a");
-    Parameter<std::string> param = group.getParameter("param1", std::string("my default value"));
-    ROS_ASSERT("my default value" == param.get());
-  }
+  // ParameterGroup group = grouphandle.createGroupParameter();
 
-  // Node A creates a Parameter and nodes B gets a copy of the Parameter
-  {
-    
-  }
 
   ROS_INFO("Test finished correctly");
 }
