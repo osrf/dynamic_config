@@ -35,7 +35,7 @@
 
 #include <ros/ros.h>
 #include "gsoc/param_server.h" 
-#include "gsoc/param.h"
+#include "gsoc/param_server_proxy.h"
 
 // data
 std::vector<uint8_t> tenOnes(10, 1);

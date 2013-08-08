@@ -57,12 +57,11 @@ namespace gsoc {
 
     } // anonymous
 
+    typedef boost::function<void (const std::vector<uint8_t>&, const std::vector<uint8_t>&)> UpdateCallback;
+    typedef boost::function<bool (const std::vector<uint8_t>&, const std::vector<uint8_t>&)> AcceptCallback;
 
     class ParamServerProxy
     {
-      typedef boost::function<void (const std::vector<uint8_t>&, const std::vector<uint8_t>&)> UpdateCallback;
-      typedef boost::function<bool (const std::vector<uint8_t>&, const std::vector<uint8_t>&)> AcceptCallback;
-
     public:
       ParamServerProxy(const std::string& namespc = "~")
       {
