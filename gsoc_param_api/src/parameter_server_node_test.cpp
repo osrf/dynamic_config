@@ -66,12 +66,11 @@ bool do_not_accept_parameter_callback(const std::vector<uint8_t>& old, const std
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "parameter_server_node_test");
+  gsoc::param::init();
 
   gsoc::param_server::init("param_server");
   ros::AsyncSpinner spinner(0);
   spinner.start();
-
-  gsoc::param::init();
 
   // Set a parameter
   ROS_ASSERT(gsoc::param::set("param1", tenOnes));

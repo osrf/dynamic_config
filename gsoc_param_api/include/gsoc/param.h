@@ -34,6 +34,7 @@
  */
 
 #include <ros/ros.h>
+#include <ros/callback_queue.h>
 #include "gsoc_param_api/Set.h"
 #include "gsoc_param_api/Get.h"
 #include "gsoc_param_api/Has.h"
@@ -51,13 +52,18 @@ namespace gsoc {
 
     namespace {
 
-      ros::ServiceServer updaterServer;
       typedef boost::function<void (const std::vector<uint8_t>&, const std::vector<uint8_t>&)> UpdateCallback;
+      typedef boost::function<bool (const std::vector<uint8_t>&, const std::vector<uint8_t>&)> AcceptCallback;
+
+      ros::ServiceServer updaterServer;
       std::map<std::string, UpdateCallback>  updateCallbacks;
 
       ros::ServiceServer acceptorServer;
-      typedef boost::function<bool (const std::vector<uint8_t>&, const std::vector<uint8_t>&)> AcceptCallback;
       std::map<std::string, AcceptCallback> acceptCallbacks;
+
+      ros::CallbackQueue g_param_callbackQueue;
+      boost::shared_ptr<ros::AsyncSpinner> g_param_spinner;
+      // ros::AsyncSpinner spinner(1, &callbackQueue);
 
       bool update_parameter_callback(gsoc_param_api::UpdateParameter::Request  &req,
                                      gsoc_param_api::UpdateParameter::Response &res)
@@ -78,8 +84,11 @@ namespace gsoc {
     void init(const std::string& namespc = "~")
     {
       ros::NodeHandle n(namespc);
+      n.setCallbackQueue(&g_param_callbackQueue);
       updaterServer = n.advertiseService("update_parameter", update_parameter_callback);
       acceptorServer = n.advertiseService("accept_parameter", accept_parameter_callback);
+      g_param_spinner.reset(new ros::AsyncSpinner(1, &g_param_callbackQueue));
+      g_param_spinner->start();
     }
 
     bool set(const std::string& name, const std::vector<uint8_t>& data)
