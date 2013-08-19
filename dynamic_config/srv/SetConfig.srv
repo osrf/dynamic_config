@@ -1,0 +1,4 @@
+Config config
+---
+bool accepted
+string reason
