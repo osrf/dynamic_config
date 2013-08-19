@@ -250,6 +250,9 @@ int main(int argc, char **argv)
   ROS_ASSERT( 10 == config.get<int>("param2") );
   ROS_ASSERT( 11.1 == config.get<double>("param3") );
 
+  // The services and the publisher can be configured in a different CallbackQueue.
+  // In this example I use an async spinner to execute it in a different thread and
+  // be able to call the services from this node.
   ros::NodeHandle n("~");
   ros::CallbackQueue queue;
   n.setCallbackQueue(&queue);
@@ -259,6 +262,8 @@ int main(int argc, char **argv)
   confServer.publish(config.getConfig());
 
   {
+    // The access to the configuration of other node can be wrapped in a few classes
+    // to make easier to the user this task. This is not done in this example.
     dynamic_config::GetConfig srv;
     ROS_ASSERT( ros::service::call("~get_server", srv) );
     Configuration config(srv.response.config);
