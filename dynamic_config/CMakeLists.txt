@@ -73,6 +73,7 @@ include_directories(
 
 ## Declare a cpp executable
 add_executable(dynamic_config_node src/dynamic_config_node.cpp)
+add_executable(config_prototype_node src/config_prototype_node.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -80,6 +81,9 @@ add_executable(dynamic_config_node src/dynamic_config_node.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(dynamic_config_node
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(config_prototype_node
   ${catkin_LIBRARIES}
 )
 
