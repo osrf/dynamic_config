@@ -24,6 +24,9 @@ add_message_files(
   FILES
   Parameter.msg
   Config.msg
+  Param.msg
+  Metadata.msg
+  Conf.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -31,6 +34,8 @@ add_service_files(
   FILES
   GetConfig.srv
   SetConfig.srv
+  GetConf.srv
+  SetConf.srv
 )
 
 ## Generate added messages and services with any dependencies listed here
@@ -49,7 +54,7 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
 #  LIBRARIES dynamic_config
 #  CATKIN_DEPENDS roscpp std_msgs
   DEPENDS message_runtime
@@ -64,6 +69,7 @@ catkin_package(
 # include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  include
 )
 
 ## Declare a cpp library

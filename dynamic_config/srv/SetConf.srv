@@ -1,0 +1,4 @@
+Conf conf
+---
+bool accepted
+string reason

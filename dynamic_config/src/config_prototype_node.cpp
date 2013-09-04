@@ -39,300 +39,35 @@
 
 #include <boost/variant.hpp>
 
-#include "dynamic_config/Parameter.h"
-#include "dynamic_config/Config.h"
-#include "dynamic_config/SetConfig.h"
-#include "dynamic_config/GetConfig.h"
+#include <dynamic_config/GetConf.h>
+#include <dynamic_config/SetConf.h> 
 
-namespace gsoc {
-
-  namespace configuration {
-
-    template <typename T>
-    struct ParameterInfo {
-      std::string name;
-      std::string parameter;
-      T data;
-      std::string description;
-      std::string owner;
-
-      bool operator==(const ParameterInfo& rhs) {
-        return name == rhs.name && 
-               parameter == rhs.parameter && 
-               data == rhs.data &&
-               description == rhs.description &&
-               owner == rhs.owner;
-      }
-
-      bool operator!=(const ParameterInfo& rhs) {
-        return !(*this == rhs);
-      }
-    };
-    typedef boost::variant<ParameterInfo<int>, ParameterInfo<float>, ParameterInfo<double>, 
-      ParameterInfo<long>, ParameterInfo<bool>, ParameterInfo<std::string> > ParameterInfoVar;
-
-    typedef std::map<std::string, ParameterInfoVar> ParameterInfoVarMap;
-
-    template <typename T>
-    class Parameter {
-    public:
-      Parameter(const ParameterInfo<T>& info)
-      : info_(info) { }
-
-      template <typename U>
-      bool operator==(const Parameter<U> rhs) {
-        return typeid(T) == typeid(U) && info_ == rhs;
-      }
-
-      const std::string& name() const {
-        return info_.name;
-      }
-
-      const std::string& parameter() const {
-        return info_.parameter;
-      }
-
-      const T& data() const {
-        return info_.data;
-      }
-
-      const std::string& description() const {
-        return info_.description;
-      }
-
-      bool valid() {
-        return info_.name != "";
-      }
-
-    private:
-      ParameterInfo<T> info_;
-    };
-
-    class Configuration {
-    public:
-      template <typename InputIterator>
-      Configuration(InputIterator begin, InputIterator end)
-      : params_(begin, end) { }
-
-      bool operator==(const Configuration& rhs) {
-        return true;
-      }
-
-      template <typename T>
-      Parameter<T> parameter(const std::string& name) {
-        try {
-          ParameterInfoVarMap::const_iterator it = params_.find(name);
-          const ParameterInfo<T>& info = (it != params_.end() ? boost::get<ParameterInfo<T> >(it->second)
-                                                              : emptyParameterInfo<T>());
-          return Parameter<T>(info);
-        } catch (boost::bad_get& bg) {
-          ROS_ERROR_STREAM("Bad cast of parameter " << name);
-          return Parameter<T>(emptyParameterInfo<T>());
-        }
-      }
-
-      template <typename Visitor>
-      void introspect(const std::string& name, Visitor visitor) {
-        ParameterInfoVarMap::iterator it = params_.find(name);
-        if (it != params_.end())
-          boost::apply_visitor(boost::bind(CallVisitor(), _1, visitor), it->second);
-        else
-          ROS_ERROR_STREAM("Parameter " << name << " does not exist");
-      }
-
-      template <typename Visitor>
-      void introspect(Visitor visitor) {
-        ParameterInfoVarMap::iterator it = params_.begin();
-        ParameterInfoVarMap::iterator end = params_.end();
-        for (; it != end; ++it)
-          boost::apply_visitor(boost::bind(CallVisitor(), _1, visitor), it->second);
-      }
-
-    private:
-
-      template <typename Visitor>
-      void applyVisitorToIterator(ParameterInfoVar& infoVar, Visitor visitor) const {
-        boost::apply_visitor(boost::bind(CallVisitor(), _1, visitor), infoVar);
-      }
-
-      struct CallVisitor : public boost::static_visitor<> {
-        template <typename T, typename Visitor>
-        void operator()(const ParameterInfo<T>& info, Visitor visitor) const {
-          visitor(Parameter<T>(info));
-        }
-      };
-
-      template <typename T>
-      ParameterInfo<T> emptyParameterInfo() {
-        ParameterInfo<T> info;
-        return info;
-      }
-
-      ParameterInfoVarMap params_;
-      std::string md5_;
-    };
-
-    class ConfigurationBuilder {
-    public:
-      ConfigurationBuilder(const ros::NodeHandle& n)
-      : n_(n) { }
-
-      template<typename T>
-      ConfigurationBuilder& addParameter(const std::string& name,
-                                         const std::string& parameter,
-                                         const T& default_value,
-                                         const std::string& description) {
-        ParameterInfo<T> info;
-        info.name = name;
-        info.description = description;
-        info.owner = "";
-        n_.param(parameter, info.data, default_value);
-        parameterFullName(parameter, info.parameter);
-
-        if (!params_.insert(std::make_pair(name, info)).second)
-          ROS_ERROR_STREAM("Parameter " << name << " already exists");
-        return *this;
-      }
-
-      Configuration build() {
-        return Configuration(params_.begin(), params_.end());
-      }
-
-    private:
-
-      void parameterFullName(const std::string& parameter, std::string& fullName) {
-        if (parameter == "" || parameter[0] == '/')
-          fullName = parameter;
-        else if (parameter[0] == '~')
-          fullName = ros::this_node::getName() + "/" + parameter;
-        else
-          fullName = n_.getNamespace() + "/" + parameter;
-      }
-
-      ros::NodeHandle n_;
-      ParameterInfoVarMap params_;
-    };
-
-    namespace {
-
-      struct ConfigurationToMsg {
-
-        template <typename T>
-        void operator()(Parameter<T> p) {
-
-        }
+#include "gsoc/configuration/msg_handler.h"
+#include "gsoc/configuration/configuration.h"
+#include "gsoc/configuration/configuration_server.h"
+#include "gsoc/configuration/configuration_client.h"
 
 
-
-      };
-
-    } // anonymous
-
-    class ConfigurationServer {
-    public:
-      typedef boost::function<bool (const Configuration&, const Configuration&, 
-                              const std::map<std::string,bool>&)> Callback;
-
-      ConfigurationServer(ros::NodeHandle& n, const Configuration& conf, Callback cb)
-      : conf_(conf)
-      , cb_(cb)
-      , getSrv(n.advertiseService("get_config", &ConfigurationServer::get_config, this))
-      , setSrv(n.advertiseService("set_config", &ConfigurationServer::get_config, this))
-      , publisher(n.advertise<dynamic_config::Config>("config", 1000, true))
-      {
-        if (!validServicesAndPublisher())
-          shutdown();
-      }
-
-      ~ConfigurationServer() { }
-
-      bool reconfigure(const Configuration& newConf) {
-        return true;
-      }
-
-      const Configuration& configuration() const {
-        return conf_;
-      }
-
-    private:
-
-      bool get_config(dynamic_config::GetConfig::Request  &req,
-                      dynamic_config::GetConfig::Response &res) {
-        return true;
-      }
-
-      bool set_config(dynamic_config::SetConfig::Request  &req,
-                      dynamic_config::SetConfig::Response &res) {
-        // call callback
-        //std::map<std::string,bool> myMap;
-        //res.accepted = cb_(conf_, conf_, myMap);
-        //if (res.accepted)
-        //  publisher.publish(req.config);
-        return true;
-      }
-
-      bool validServicesAndPublisher() {
-        return getSrv && setSrv && publisher;
-      }
-
-      void shutdown() {
-        getSrv.shutdown();
-        setSrv.shutdown();
-        publisher.shutdown();
-      }
-
-      Configuration conf_;
-      Callback cb_;
-      ros::ServiceServer getSrv;
-      ros::ServiceServer setSrv;
-      ros::Publisher publisher;
-    };
-
-    class NodeHandle {
-    public:
-      NodeHandle(const ros::NodeHandle& n)
-      : n_(n)
-      { }
-
-      ConfigurationBuilder createConfiguration() const {
-        return ConfigurationBuilder(n_);
-      }
-
-      ConfigurationServer createConfigurationServer(const Configuration& conf,
-                                                    ConfigurationServer::Callback cb) {
-        return ConfigurationServer(n_, conf, cb);
-      }
-
-    private:
-      ros::NodeHandle n_;
-    };
-
-  } // configuration
-
-} // gsoc
-
-// All accepted types need a operator() function. It be generalized
-// with templates.
-struct Introspection {
-
-  void operator()(gsoc::configuration::Parameter<std::string> p) const {
-    ROS_INFO_STREAM("Param " << p.name() << " is a string with value " << p.data());
+// This is struct is to do introspection of the configuration.
+// Methods must be const. All possible types of the parameter must
+// have a function (For the example I just have string and int). A
+// template function can also be used.
+struct PrintConfiguration {
+  void operator()(std::pair<std::string,std::string> pair) const {
+    print(pair.first, "string", pair.second);
   }
 
-  void operator()(gsoc::configuration::Parameter<int> p) const {
-    ROS_INFO_STREAM("Param " << p.name() << " is an int with value " << p.data());
+  void operator()(std::pair<std::string,int> pair) const {
+    print(pair.first, "int", pair.second);
   }
 
   template <typename T>
-  void operator()(gsoc::configuration::Parameter<T> p) const {
-    ROS_INFO_STREAM("Param " << p.name() << " using templates");
+  void print(const std::string& name, const std::string& type, const T& t) const {
+    ROS_INFO_STREAM("The parameter " << name << " is a " << type << " with value " << t);
   }
-
 };
 
-bool acceptChanges(const gsoc::configuration::Configuration& current, 
-                   const gsoc::configuration::Configuration& candidate,
-                   const std::map<std::string, bool>& changes) {
+bool accept_configuration(gsoc::configuration::Configuration& conf) {
   return true;
 }
 
@@ -342,7 +77,7 @@ int main(int argc, char** argv) {
 
   namespace config = gsoc::configuration;
 
-  // Server executes in its own thread to simulate
+  // Server is executed in a different queue to simulate
   // it is a different node
   ros::NodeHandle srvRosHandle("server");
   ros::CallbackQueue srvQueue;
@@ -350,37 +85,22 @@ int main(int argc, char** argv) {
   ros::AsyncSpinner srvSpinner(1, &srvQueue);
   srvSpinner.start();
 
-  // This is my own NodeHandle. In a future it can be
-  // integrated in the real NodeHandle
-  config::NodeHandle srvHandle(srvRosHandle);
+  // Server starts the configuration server with a configuration
+  // The values of the configuration can be changed, but not the structure
+  // i.e., the parameters name and type
+  config::Configuration conf;
+  conf.put("p1", std::string("hola"));
+  conf.put("p2", 100);
+  config::ConfigurationServer configSrv(srvRosHandle, conf, accept_configuration);
 
-  // Create the configuration of the node "/server"
-  config::Configuration configuration = srvHandle.createConfiguration()
-    .addParameter("param1", "/server/param1", std::string("My default value"), "This is the description")
-    .addParameter("param2", "/server/param2", 100, "This is an int")
-    .build();
+  // A client request the configuration. Both configs are equal.
+  ros::NodeHandle n("server");
+  config::ConfigurationClient client(n);
+  config::Configuration conf2 = client.configuration();
+  ROS_ASSERT( conf == conf2 );
 
-  config::Parameter<std::string> param1 = configuration.parameter<std::string>("param1");
-  ROS_ASSERT(param1.valid());
-  ROS_ASSERT("param1" == param1.name());
-  ROS_ASSERT("/server/param1" == param1.parameter());
-  ROS_ASSERT("My default value" == param1.data());
-  ROS_ASSERT("This is the description" == param1.description());
-
-  // If user tries to cast a parameter to a wrong type. A message is shown and an empty
-  // parameter is returned.
-  config::Parameter<float> wrongTypeParam = configuration.parameter<float>("param1");
-  ROS_ASSERT(!wrongTypeParam.valid());
-
-  // Introspection of the configuration. Can be for just one parameter
-  // or the whole configuration
-  ROS_INFO("Introspection of the configuration");
-  configuration.introspect("param1", Introspection());
-  configuration.introspect(Introspection());
-
-  // Publish the configuration
-  config::ConfigurationServer srv = srvHandle.createConfigurationServer(configuration, acceptChanges);
-
+  // The client can do introspection in the configuration
+  conf2.applyAll(PrintConfiguration());
 
   ROS_INFO("Test finished!!");
   return 0;
