@@ -20,7 +20,7 @@
  *     written permission.
  *
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
  *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
@@ -71,6 +71,11 @@ bool accept_configuration(gsoc::configuration::Configuration& conf) {
   return true;
 }
 
+void configuration_listener(gsoc::configuration::Configuration& conf) {
+  // The client can do introspection in the configuration
+  conf.applyAll(PrintConfiguration());
+}
+
 int main(int argc, char** argv) {
 
   ros::init(argc, argv, "config_prototype_node");
@@ -93,14 +98,24 @@ int main(int argc, char** argv) {
   conf.put("p2", 100);
   config::ConfigurationServer configSrv(srvRosHandle, conf, accept_configuration);
 
-  // A client request the configuration. Both configs are equal.
+  // Listener of a configuration
   ros::NodeHandle n("server");
+  config::ConfigurationListener listener(n, configuration_listener);
+
+  // A client request the configuration. Both configs are equal.
   config::ConfigurationClient client(n);
   config::Configuration conf2 = client.configuration();
   ROS_ASSERT( conf == conf2 );
 
-  // The client can do introspection in the configuration
-  conf2.applyAll(PrintConfiguration());
+  // The client request a reconfiguration
+  conf2.put("p1", std::string("bye bye"));
+  conf2.put("p2", 200);
+  ROS_ASSERT( client.reconfigure(conf2) );
+  ROS_ASSERT( configSrv.configuration() == conf2 );
+
+  // Spin to call listener queue
+  ROS_INFO("Press C^c to finish the test");
+  ros::spin();
 
   ROS_INFO("Test finished!!");
   return 0;

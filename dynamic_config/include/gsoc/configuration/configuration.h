@@ -101,8 +101,21 @@ namespace gsoc {
     public:
       Configuration() { }
 
+      // Configuration(const Configuration& other)
+      // : params_(other.params_)
+      // { }
+
+      // Configuration& operator=(const Configuration& rhs) {
+      //   params_ = rhs.params_;
+      // }
+
+      // template <typename T>
+      // T get(const std::string& name) {
+      //   return boost::get<T>(params_[name]);
+      // }
+
       template <typename T>
-      T get(const std::string& name) {
+      const T& get(const std::string& name) const {
         return boost::get<T>(params_[name]);
       }
 
@@ -142,14 +155,18 @@ namespace gsoc {
           boost::bind(make_ResultVisitor<ResultType, Visitor>, _1, visitor));
       }
 
-      bool similar(const Configuration& conf) {
+      bool equivalent(const Configuration& conf) {
         return params_.size() == conf.params_.size() &&
                std::equal(params_.begin(), params_.end(), conf.params_.begin(), sameName) &&
                std::equal(params_.begin(), params_.end(), conf.params_.begin(), sameType);
       }
 
+      int size() const {
+        return params_.size();
+      }
+
       bool operator==(const Configuration& rhs) {
-        return similar(rhs) &&
+        return equivalent(rhs) &&
                std::equal(params_.begin(), params_.end(), rhs.params_.begin(), sameValue);
       }
 

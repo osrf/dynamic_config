@@ -51,7 +51,31 @@ namespace gsoc {
       : conf_(conf)
       , cb_(cb)
       , getSrv_(n.advertiseService("get_conf", &ConfigurationServer::getSrvCallback, this))
-      { }
+      , setSrv_(n.advertiseService("set_conf", &ConfigurationServer::setSrvCallback, this))
+      , publisher_(n.advertise<dynamic_config::Conf>("conf", 100, true))
+      { 
+        reconfigure(conf);
+      }
+
+      Configuration configuration() {
+        return conf_;
+      }
+
+      bool reconfigure(Configuration& conf) {
+        if (!conf_.equivalent(conf)) {
+          ROS_ERROR("Configuration structure not valid");
+          return false;
+        }
+        bool accepted = cb_(conf);
+        if (accepted) {
+          conf_ = conf;
+          dynamic_config::Conf msg;
+          msg_handler::ParameterToParamMsg visitor;
+          conf.applyAll<dynamic_config::Param>(visitor, std::inserter(msg.params, msg.params.begin()));
+          publisher_.publish(msg);
+        }
+        return accepted;
+      }
 
     private:
 
@@ -62,10 +86,20 @@ namespace gsoc {
         return true;
       }
 
+      bool setSrvCallback(dynamic_config::SetConf::Request&  req,
+                          dynamic_config::SetConf::Response& res) {
+        Configuration conf;
+        msg_handler::paramMsgToParameter(req.conf.params.begin(),
+                                         req.conf.params.end(), conf);
+        res.accepted  = reconfigure(conf);
+        return true;
+      }
+
       Configuration conf_;
       Callback cb_;
       ros::ServiceServer getSrv_;
       ros::ServiceServer setSrv_;
+      ros::Publisher publisher_;
     };
 
   } // configuration

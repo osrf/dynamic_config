@@ -46,23 +46,61 @@ namespace gsoc {
     public:
       ConfigurationClient(ros::NodeHandle& n)
       : getConfClient_(n.serviceClient<dynamic_config::GetConf>("get_conf"))
+      , setConfClient_(n.serviceClient<dynamic_config::SetConf>("set_conf"))
       { }
 
       Configuration configuration() {
         Configuration conf;
         dynamic_config::GetConf srv;
-        if (getConfClient_.call(srv)) {
+        if (getConfClient_.call(srv))
           msg_handler::paramMsgToParameter(srv.response.conf.params.begin(),
-                              srv.response.conf.params.end(),
-                              conf);
-        } else {
+                                           srv.response.conf.params.end(), conf);
+        else
           ROS_ERROR_STREAM("Error ConfigurationClient getconf");
-        }
         return conf;
+      }
+
+      bool reconfigure(Configuration& conf) {
+        dynamic_config::SetConf srv;
+        msg_handler::ParameterToParamMsg visitor;
+        conf.applyAll<dynamic_config::Param>(visitor,
+          std::inserter(srv.request.conf.params, srv.request.conf.params.begin()));
+        if (setConfClient_.call(srv)) {
+          if (!srv.response.accepted)
+            ROS_ERROR_STREAM("Reconfiguration not accepted. " << srv.response.reason);
+          return srv.response.accepted;
+        }
+
+        ROS_ERROR_STREAM("Can't reconfigure " << setConfClient_.getService());
+        return false;
       }
 
     private:
       ros::ServiceClient getConfClient_;
+      ros::ServiceClient setConfClient_;
+    };
+
+
+
+    class ConfigurationListener {
+    public:
+      typedef boost::function<void (Configuration&)> Callback;
+
+      ConfigurationListener(ros::NodeHandle& n, Callback cb)
+      : subscriber_(n.subscribe("conf", 100, &ConfigurationListener::callback, this))
+      , cb_(cb)
+      { }
+
+    private:
+
+      void callback(const dynamic_config::Conf& msg) {
+        Configuration conf;
+        msg_handler::paramMsgToParameter(msg.params.begin(), msg.params.end(), conf);
+        cb_(conf);
+      }
+
+      ros::Subscriber subscriber_;
+      Callback cb_;
     };
 
   } // configuration
