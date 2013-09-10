@@ -108,12 +108,24 @@ namespace gsoc {
 
       template <typename T>
       const T& get(const std::string& name) const {
-        return boost::get<T>(params_[name]);
+        if (isType<T>(name))
+          return boost::get<T>(params_[name]);
+        ROS_ERROR_STREAM("Parameter " << name << " does not exist or type is wrong");
+        return T();
       }
 
       template <typename T>
       void put(const std::string& name, const T& t) {
         params_[name] = t;
+      }
+
+      bool has(const std::string& name) {
+        return params_.find(name) != params_.end();
+      }
+
+      template <typename T>
+      bool isType(const std::string& name) {
+        return has(name) ? params_[name].type() == typeid(T) : false;
       }
 
       template <typename Visitor>
@@ -146,16 +158,14 @@ namespace gsoc {
         std::transform(params_.begin(), params_.end(), result, make_operation<ResultType>(visitor));
       }
 
+      int size() const {
+        return params_.size();
+      }
+
       bool equivalent(const Configuration& conf) {
         return params_.size() == conf.params_.size() &&
                std::equal(params_.begin(), params_.end(), conf.params_.begin(), sameName) &&
                std::equal(params_.begin(), params_.end(), conf.params_.begin(), sameType);
-      }
-
-      
-
-      int size() const {
-        return params_.size();
       }
 
       bool operator==(const Configuration& rhs) {
@@ -170,6 +180,46 @@ namespace gsoc {
     private:
       Parameters params_;
     };
+
+    class ConfigurationBuilder {
+    public:
+      ConfigurationBuilder(const ros::NodeHandle& n)
+      : n_(n)
+      { }
+
+      template <typename T>
+      ConfigurationBuilder& addParameter(const std::string& name,
+                                         const std::string& global_param,
+                                         const T& default_value) {
+        T value;
+        n_.param(global_param, value, default_value);
+        conf_.put(name, value);
+        return *this;
+      }
+
+      template <typename T>
+      ConfigurationBuilder& addParameter(const std::string& name,
+                                         const T& default_value) {
+        conf_.put(name, default_value);
+        return *this;
+      }
+
+      Configuration build() {
+        return conf_;
+      }
+
+    private:
+      ros::NodeHandle n_;
+      Configuration conf_;
+    };
+
+    ConfigurationBuilder make_builder(const ros::NodeHandle& n) {
+      return ConfigurationBuilder(n);
+    }
+
+    ConfigurationBuilder make_builder(const std::string& namespc = "~") {
+      return make_builder(ros::NodeHandle(namespc));
+    }
 
   } // configuration
 

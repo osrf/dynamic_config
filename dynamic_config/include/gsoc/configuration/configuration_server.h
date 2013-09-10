@@ -43,11 +43,19 @@ namespace gsoc {
 
   namespace configuration {
 
+    bool accept_all(gsoc::configuration::Configuration&) {
+      return true;
+    }
+
+    bool deny_all(gsoc::configuration::Configuration&) {
+      return false;
+    }
+
     class ConfigurationServer {
     public:
       typedef boost::function<bool (Configuration&)> Callback;
 
-      ConfigurationServer(ros::NodeHandle& n, Configuration& conf, Callback cb) 
+      ConfigurationServer(ros::NodeHandle& n, Configuration& conf, Callback cb = accept_all) 
       : conf_(conf)
       , cb_(cb)
       , getSrv_(n.advertiseService("get_conf", &ConfigurationServer::getSrvCallback, this))

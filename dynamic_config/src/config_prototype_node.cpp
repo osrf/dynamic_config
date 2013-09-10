@@ -47,7 +47,6 @@
 #include "gsoc/configuration/configuration_server.h"
 #include "gsoc/configuration/configuration_client.h"
 
-
 // This is struct is to do introspection of the configuration.
 // Methods must be const. All possible types of the parameter must
 // have a function (For the example I just have string and int). A
@@ -93,10 +92,12 @@ int main(int argc, char** argv) {
   // Server starts the configuration server with a configuration
   // The values of the configuration can be changed, but not the structure
   // i.e., the parameters name and type
-  config::Configuration conf;
-  conf.put("p1", std::string("hola"));
-  conf.put("p2", 100);
-  config::ConfigurationServer configSrv(srvRosHandle, conf, accept_configuration);
+  config::Configuration conf = config::make_builder()
+    .addParameter("p1", std::string("hola"))
+    .addParameter("p2", 100)
+    .build();
+
+  config::ConfigurationServer configSrv(srvRosHandle, conf);
 
   // Listener of a configuration
   ros::NodeHandle n("server");
