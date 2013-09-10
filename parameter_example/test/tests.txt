@@ -1,7 +1,0 @@
-This is just a file to write down a few things about tests.
-
-- Build a test. Add to CMakeLists.txt
-    catkin_add_gtest(utest test/command_test.cpp)
-
-- Run tests. Execute
-    catkin_make run_tests

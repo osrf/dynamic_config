@@ -1,4 +1,0 @@
-string name
-int8 event
-uint8[] value
----
