@@ -22,8 +22,6 @@ find_package(Boost REQUIRED COMPONENTS system)
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  Parameter.msg
-  Config.msg
   Param.msg
   Metadata.msg
   Conf.msg
@@ -32,8 +30,6 @@ add_message_files(
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  GetConfig.srv
-  SetConfig.srv
   GetConf.srv
   SetConf.srv
 )
@@ -78,7 +74,6 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-add_executable(dynamic_config_node src/dynamic_config_node.cpp)
 add_executable(config_prototype_node src/config_prototype_node.cpp)
 
 ## Add cmake target dependencies of the executable/library
@@ -86,9 +81,6 @@ add_executable(config_prototype_node src/config_prototype_node.cpp)
 # add_dependencies(dynamic_config_node dynamic_config_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(dynamic_config_node
-  ${catkin_LIBRARIES}
-)
 target_link_libraries(config_prototype_node
   ${catkin_LIBRARIES}
 )
