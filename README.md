@@ -117,7 +117,7 @@ bool reconfigured = client.reconfigure(conf);
 struct PrintConfiguration { 
   template <typename T>
   void operator()(std::pair<std::string,T> pair) const {
-    ROS_INFO_STREAM("The parameter " << pair.first << " has value " << t);
+    ROS_INFO_STREAM("The parameter " << pair.first << " has value " << pair.second);
   }
 };
 
