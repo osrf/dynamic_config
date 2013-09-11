@@ -33,6 +33,9 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef DYNAMIC_CONFIG_MSG_HANDLER_H
+#define DYNAMIC_CONFIG_MSG_HANDLER_H
+
 #include <ros/ros.h>
 #include "gsoc/configuration/serialization.h"
 #include <dynamic_config/Param.h>
@@ -96,3 +99,5 @@ namespace gsoc {
   } // configuration
 
 } // gsoc
+
+#endif

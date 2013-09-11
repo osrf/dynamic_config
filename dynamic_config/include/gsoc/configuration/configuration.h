@@ -33,11 +33,13 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef DYNAMIC_CONFIG_CONFIGURATION_H
+#define DYNAMIC_CONFIG_CONFIGURATION_H
+
 #include <map>
 #include <iterator>
 #include <algorithm>
 #include <boost/variant.hpp>
-#include <boost/bind.hpp>
 
 namespace gsoc {
 
@@ -107,9 +109,11 @@ namespace gsoc {
       Configuration() { }
 
       template <typename T>
-      const T& get(const std::string& name) const {
-        if (isType<T>(name))
-          return boost::get<T>(params_[name]);
+      T get(const std::string& name) const {
+        Parameters::const_iterator it = params_.find(name);
+        if (notEnd(it) && typeCorrect<T>(it)) {
+          return boost::get<T>(it->second);
+        }
         ROS_ERROR_STREAM("Parameter " << name << " does not exist or type is wrong");
         return T();
       }
@@ -120,12 +124,14 @@ namespace gsoc {
       }
 
       bool has(const std::string& name) const {
-        return params_.find(name) != params_.end();
+        Parameters::const_iterator it = params_.find(name);
+        return notEnd(it);
       }
 
       template <typename T>
       bool isType(const std::string& name) const {
-        return has(name) ? params_[name].type() == typeid(T) : false;
+        Parameters::const_iterator it = params_.find(name);
+        return typeCorrect<T>(it);
       }
 
       template <typename Visitor>
@@ -178,6 +184,15 @@ namespace gsoc {
       }
 
     private:
+      bool notEnd(Parameters::const_iterator& it) const {
+        return it != params_.end();
+      }
+
+      template <typename T>
+      bool typeCorrect(Parameters::const_iterator& it) const {
+        return (it->second).type() == typeid(T);
+      }
+
       Parameters params_;
     };
 
@@ -224,3 +239,5 @@ namespace gsoc {
   } // configuration
 
 } // gsoc
+
+#endif

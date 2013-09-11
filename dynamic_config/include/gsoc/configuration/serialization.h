@@ -33,6 +33,9 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef DYNAMIC_CONFIG_SERIALIZATION_H
+#define DYNAMIC_CONFIG_SERIALIZATION_H
+
 #include "ros/ros.h"
 
 namespace gsoc {
@@ -85,3 +88,5 @@ namespace gsoc {
   } // configuration
 
 } // gsoc
+
+#endif

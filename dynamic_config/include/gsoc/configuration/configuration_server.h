@@ -33,11 +33,16 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef DYNAMIC_CONFIG_CONFIGURATION_SERVER_H
+#define DYNAMIC_CONFIG_CONFIGURATION_SERVER_H
+
 #include <ros/ros.h>
 
 #include <dynamic_config/GetConf.h>
-#include <dynamic_config/SetConf.h> 
+#include <dynamic_config/SetConf.h>
 
+#include "gsoc/configuration/configuration.h"
+#include "gsoc/configuration/msg_handler.h"
 
 namespace gsoc {
 
@@ -113,3 +118,5 @@ namespace gsoc {
   } // configuration
 
 } // gsoc
+
+#endif

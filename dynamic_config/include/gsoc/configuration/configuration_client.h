@@ -33,10 +33,16 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef DYNAMIC_CONFIG_CONFIGURATION_CLIENT_H
+#define DYNAMIC_CONFIG_CONFIGURATION_CLIENT_H
+
 #include <ros/ros.h>
 
 #include <dynamic_config/GetConf.h>
 #include <dynamic_config/SetConf.h> 
+
+#include "gsoc/configuration/configuration.h"
+#include "gsoc/configuration/msg_handler.h"
 
 namespace gsoc {
 
@@ -44,7 +50,7 @@ namespace gsoc {
 
     class ConfigurationClient {
     public:
-      ConfigurationClient(ros::NodeHandle& n)
+      ConfigurationClient(ros::NodeHandle n)
       : getConfClient_(n.serviceClient<dynamic_config::GetConf>("get_conf"))
       , setConfClient_(n.serviceClient<dynamic_config::SetConf>("set_conf"))
       { }
@@ -106,3 +112,5 @@ namespace gsoc {
   } // configuration
 
 } // gsoc
+
+#endif
