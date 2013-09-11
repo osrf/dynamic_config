@@ -57,7 +57,7 @@ namespace gsoc {
         { }
 
         template <typename T> 
-        Result operator()(T& t) const {
+        Result operator()(const T& t) const {
           return visitor_(std::make_pair(name_, t));
         }
 
@@ -72,7 +72,7 @@ namespace gsoc {
         :visitor_(visitor)
         { }
 
-        Result operator()(std::pair<const std::string, Parameter>& pair) const {
+        Result operator()(const std::pair<const std::string, Parameter>& pair) const {
           UnaryOperation<Result,Visitor> op(pair.first, visitor_);
           return boost::apply_visitor(op, pair.second);
         }
@@ -119,18 +119,18 @@ namespace gsoc {
         params_[name] = t;
       }
 
-      bool has(const std::string& name) {
+      bool has(const std::string& name) const {
         return params_.find(name) != params_.end();
       }
 
       template <typename T>
-      bool isType(const std::string& name) {
+      bool isType(const std::string& name) const {
         return has(name) ? params_[name].type() == typeid(T) : false;
       }
 
       template <typename Visitor>
-      void apply(const std::string& name, Visitor visitor) {
-        Parameters::iterator it = params_.find(name);
+      void apply(const std::string& name, Visitor visitor) const {
+        Parameters::const_iterator it = params_.find(name);
         if (it != params_.end())
           std::for_each(it, ++it, make_operation<void>(visitor));
         else
@@ -138,9 +138,9 @@ namespace gsoc {
       }
 
       template <typename ResultType, typename Visitor>
-      ResultType apply(const std::string& name, Visitor visitor) {
+      ResultType apply(const std::string& name, Visitor visitor) const {
         std::vector<ResultType> result(1);
-        Parameters::iterator it = params_.find(name);
+        Parameters::const_iterator it = params_.find(name);
         if (it != params_.end())
           std::transform(it, ++it, result.begin(), make_operation<ResultType>(visitor));
         else
@@ -149,12 +149,12 @@ namespace gsoc {
       }
 
       template <typename Visitor>
-      void applyAll(Visitor visitor) {
+      void applyAll(Visitor visitor) const {
         std::for_each(params_.begin(), params_.end(), make_operation<void>(visitor));
       }
 
       template <typename ResultType, typename Visitor, typename OutputIterator>
-      void applyAll(Visitor visitor, OutputIterator result) {
+      void applyAll(Visitor visitor, OutputIterator result) const {
         std::transform(params_.begin(), params_.end(), result, make_operation<ResultType>(visitor));
       }
 
@@ -162,18 +162,18 @@ namespace gsoc {
         return params_.size();
       }
 
-      bool equivalent(const Configuration& conf) {
+      bool equivalent(const Configuration& conf) const {
         return params_.size() == conf.params_.size() &&
                std::equal(params_.begin(), params_.end(), conf.params_.begin(), sameName) &&
                std::equal(params_.begin(), params_.end(), conf.params_.begin(), sameType);
       }
 
-      bool operator==(const Configuration& rhs) {
+      bool operator==(const Configuration& rhs) const {
         return equivalent(rhs) &&
                std::equal(params_.begin(), params_.end(), rhs.params_.begin(), sameValue);
       }
 
-      bool operator!=(const Configuration& rhs) {
+      bool operator!=(const Configuration& rhs) const {
         return !(*this == rhs);
       }
 
@@ -204,7 +204,7 @@ namespace gsoc {
         return *this;
       }
 
-      Configuration build() {
+      const Configuration& build() const {
         return conf_;
       }
 
