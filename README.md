@@ -95,3 +95,37 @@ config::ConfigurationServer accept_all_server(n, conf);
 // If all configurations are rejected use
 config::ConfigurationServer reject_all_server(n, conf, config::reject_all);
 ```
+
+```c++
+// A client request the configuration.
+ros::NodeHandle n("/node");
+config::ConfigurationClient client(n);
+
+// Get the configuration of "/node"
+config::Configuration conf = client.configuration();
+
+// Change some parameters
+conf.put<std::string>("p1", "new value");
+conf.put("p2", 300);
+
+// Reconfigure node. Returns true is succed, false otherwise
+bool reconfigured = client.reconfigure(conf);
+```
+
+```c++
+// Prints parameter name and value
+struct PrintConfiguration { 
+  template <typename T>
+  void operator()(std::pair<std::string,T> pair) const {
+    ROS_INFO_STREAM("The parameter " << pair.first << " has value " << t);
+  }
+};
+
+void configuration_listener(gsoc::configuration::Configuration& conf) {
+  conf.applyAll(PrintConfiguration());
+}
+
+// The callback is called when a change is made
+ros::NodeHandle n("/node");
+config::ConfigurationListener listener(n, configuration_listener);
+```
