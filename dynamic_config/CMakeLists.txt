@@ -23,7 +23,6 @@ find_package(Boost REQUIRED COMPONENTS system)
 add_message_files(
   FILES
   Param.msg
-  Metadata.msg
   Conf.msg
 )
 
@@ -51,7 +50,7 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-#  LIBRARIES dynamic_config
+  LIBRARIES dynamic_config
 #  CATKIN_DEPENDS roscpp std_msgs
   DEPENDS message_runtime
 )
@@ -62,19 +61,17 @@ catkin_package(
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-# include_directories(include)
-include_directories(
-  ${catkin_INCLUDE_DIRS}
-  include
-)
+include_directories(include)
+include_directories(${catkin_INCLUDE_DIRS})
 
 ## Declare a cpp library
-# add_library(dynamic_config
-#   src/${PROJECT_NAME}/dynamic_config.cpp
-# )
+# add_library(dynamic_config src/${PROJECT_NAME}/dynamic_config.cpp)
 
 ## Declare a cpp executable
 add_executable(config_prototype_node src/config_prototype_node.cpp)
+add_executable(reconfigurable_node src/dynamic_config/reconfigurable_node.cpp)
+add_executable(client_node src/dynamic_config/client_node.cpp)
+
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -82,6 +79,12 @@ add_executable(config_prototype_node src/config_prototype_node.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(config_prototype_node
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(reconfigurable_node
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(client_node
   ${catkin_LIBRARIES}
 )
 
