@@ -94,6 +94,11 @@ namespace gsoc {
         }
       }
 
+      template <typename Container, typename Configuration>
+      void paramMsgToParameter(Container container, Configuration& conf) {
+        paramMsgToParameter(container.begin(), container.end(), conf);
+      }
+
     } // msg_handler
 
   } // configuration

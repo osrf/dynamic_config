@@ -34,19 +34,9 @@
  */
 
 #include <ros/ros.h>
-
 #include "dynamic_config/dynamic_config.h"
 
-struct PrintParameter { 
-  template <typename T>
-  void operator()(std::pair<std::string,T> pair) const {
-    ROS_INFO_STREAM("The parameter " << pair.first << " has value " << pair.second);
-  }
-};
-
 bool accept_even_numbers(const gsoc::configuration::Configuration& conf) {
-  // Accept even numbers
-  conf.applyAll(PrintParameter());
   return conf.get<int>("p2")%2 == 0;
 }
 
