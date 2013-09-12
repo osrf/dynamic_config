@@ -71,7 +71,7 @@ include_directories(${catkin_INCLUDE_DIRS})
 add_executable(config_prototype_node src/config_prototype_node.cpp)
 add_executable(reconfigurable_node src/dynamic_config/reconfigurable_node.cpp)
 add_executable(client_node src/dynamic_config/client_node.cpp)
-
+add_executable(listener_node src/dynamic_config/listener_node.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -85,6 +85,9 @@ target_link_libraries(reconfigurable_node
   ${catkin_LIBRARIES}
 )
 target_link_libraries(client_node
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(listener_node
   ${catkin_LIBRARIES}
 )
 

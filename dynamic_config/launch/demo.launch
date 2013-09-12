@@ -1,4 +1,5 @@
 <launch>
   <node name="reconfigurable_node" pkg="dynamic_config" type="reconfigurable_node" output="screen" />
-  <node name="client_node" pkg="dynamic_config" type="client_node" output="screen" />
+  <node name="client" pkg="dynamic_config" type="client_node" output="screen" />
+  <node name="listener" pkg="dynamic_config" type="listener_node" output="screen" />
 </launch>
