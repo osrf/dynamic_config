@@ -36,77 +36,24 @@
 #ifndef DYNAMIC_CONFIG_CONFIGURATION_H
 #define DYNAMIC_CONFIG_CONFIGURATION_H
 
+#include <ros/console.h>
+
 #include <map>
-#include <iterator>
 #include <algorithm>
 #include <boost/variant.hpp>
+
+#include "gsoc/configuration/configuration_helper.h"
 
 namespace gsoc {
 
   namespace configuration {
 
-    namespace {
+    class Configuration {
 
-      typedef boost::variant<std::string, int> Parameter;
+      typedef boost::variant<bool, std::string, int, long, float, double> Parameter;
       typedef std::map<std::string, Parameter> Parameters;
 
-      template <typename Result, typename Visitor>
-      struct  UnaryOperation : boost::static_visitor<Result> {
-
-        UnaryOperation(const std::string& name, const Visitor& visitor)
-        : name_(name)
-        , visitor_(visitor)
-        { }
-
-        template <typename T> 
-        Result operator()(const T& t) const {
-          return visitor_(std::make_pair(name_, t));
-        }
-
-        const std::string& name_;
-        const Visitor& visitor_;
-      };
-
-      template <typename Result, typename Visitor>
-      struct Operation {
-
-        Operation(const Visitor& visitor)
-        :visitor_(visitor)
-        { }
-
-        Result operator()(const std::pair<const std::string, Parameter>& pair) const {
-          UnaryOperation<Result,Visitor> op(pair.first, visitor_);
-          return boost::apply_visitor(op, pair.second);
-        }
-
-        const Visitor& visitor_;
-      };
-
-      template <typename Result, typename Visitor>
-      Operation<Result,Visitor> make_operation(const Visitor& visitor) {
-        return Operation<Result,Visitor>(visitor);
-      }
-
-      bool sameName(std::pair<const std::string, Parameter> p1,
-                    std::pair<const std::string, Parameter> p2) {
-        return p1.first == p2.first;
-      }
-
-      bool sameType(std::pair<const std::string, Parameter> p1,
-                    std::pair<const std::string, Parameter> p2) {
-        return p1.second.type() == p2.second.type();
-      }
-
-      bool sameValue(std::pair<const std::string, Parameter> p1,
-                    std::pair<const std::string, Parameter> p2) {
-        return p1.second == p2.second;
-      }
-
-    } // anonymous
-
-    class Configuration {
     public:
-      Configuration() { }
 
       template <typename T>
       T get(const std::string& name) const {
@@ -123,10 +70,7 @@ namespace gsoc {
         params_[name] = t;
       }
 
-      bool has(const std::string& name) const {
-        Parameters::const_iterator it = params_.find(name);
-        return notEnd(it);
-      }
+      bool has(const std::string& name) const;
 
       template <typename T>
       bool isType(const std::string& name) const {
@@ -140,7 +84,7 @@ namespace gsoc {
         if (it != params_.end())
           std::for_each(it, ++it, make_operation<void>(visitor));
         else
-          std::cerr << "Param " << name << " does not exist" << std::endl;
+          ROS_ERROR_STREAM("Param " << name << " does not exist");
       }
 
       template <typename ResultType, typename Visitor>
@@ -150,7 +94,7 @@ namespace gsoc {
         if (it != params_.end())
           std::transform(it, ++it, result.begin(), make_operation<ResultType>(visitor));
         else
-          std::cerr << "Param " << name << " does not exist" << std::endl;
+          ROS_ERROR_STREAM("Param " << name << " does not exist");
         return result[0];
       }
 
@@ -164,30 +108,23 @@ namespace gsoc {
         std::transform(params_.begin(), params_.end(), result, make_operation<ResultType>(visitor));
       }
 
-      int size() const {
-        return params_.size();
+      int size() const;
+
+      template <typename OutputIterator>
+      void names(OutputIterator result) const {
+        std::transform(params_.begin(), params_.end(), result, parameterName);
       }
 
-      bool equivalent(const Configuration& conf) const {
-        return params_.size() == conf.params_.size() &&
-               std::equal(params_.begin(), params_.end(), conf.params_.begin(), sameName) &&
-               std::equal(params_.begin(), params_.end(), conf.params_.begin(), sameType);
-      }
+      bool equivalent(const Configuration& conf) const;
 
-      bool operator==(const Configuration& rhs) const {
-        return equivalent(rhs) &&
-               std::equal(params_.begin(), params_.end(), rhs.params_.begin(), sameValue);
-      }
+      bool operator==(const Configuration& rhs) const;
 
-      bool operator!=(const Configuration& rhs) const {
-        return !(*this == rhs);
-      }
+      bool operator!=(const Configuration& rhs) const;
 
     private:
-      bool notEnd(Parameters::const_iterator& it) const {
-        return it != params_.end();
-      }
 
+      bool notEnd(Parameters::const_iterator& it) const;
+      
       template <typename T>
       bool typeCorrect(Parameters::const_iterator& it) const {
         return (it->second).type() == typeid(T);
@@ -195,46 +132,6 @@ namespace gsoc {
 
       Parameters params_;
     };
-
-    class ConfigurationBuilder {
-    public:
-      ConfigurationBuilder(const ros::NodeHandle& n)
-      : n_(n)
-      { }
-
-      template <typename T>
-      ConfigurationBuilder& addParameter(const std::string& name,
-                                         const std::string& global_param,
-                                         const T& default_value) {
-        T value;
-        n_.param(global_param, value, default_value);
-        conf_.put(name, value);
-        return *this;
-      }
-
-      template <typename T>
-      ConfigurationBuilder& addParameter(const std::string& name,
-                                         const T& default_value) {
-        conf_.put(name, default_value);
-        return *this;
-      }
-
-      const Configuration& build() const {
-        return conf_;
-      }
-
-    private:
-      ros::NodeHandle n_;
-      Configuration conf_;
-    };
-
-    ConfigurationBuilder make_builder(const ros::NodeHandle& n) {
-      return ConfigurationBuilder(n);
-    }
-
-    ConfigurationBuilder make_builder(const std::string& namespc = "~") {
-      return make_builder(ros::NodeHandle(namespc));
-    }
 
   } // configuration
 

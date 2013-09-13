@@ -49,6 +49,7 @@ int main(int argc, char** argv) {
     .addParameter<std::string>("p1", "Hello")
     .addParameter("p2", 100)
     .build();
+  conf.size();
 
   ros::NodeHandle n("~");
   config::ConfigurationServer configSrv(n, conf, accept_even_numbers);

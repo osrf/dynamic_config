@@ -48,28 +48,42 @@ namespace gsoc {
 
     namespace msg_handler {
 
+      enum ParamTypes { BOOL, STRING, INT, LONG, FLOAT, DOUBLE, UNKNOWN };
+
       struct TypeToInt {
+        int operator()(const bool&)
+        { return BOOL; }
+        int operator()(const std::string&) 
+        { return STRING; }
+        int operator()(const int&)
+        { return INT; }
+        int operator()(const long&)
+        { return LONG; }
+        int operator()(const float&)
+        { return FLOAT; }
+        int operator()(const double&)
+        { return DOUBLE; }
         template <typename T>
         int operator()(const T& t) 
         { ROS_ERROR_STREAM("TypeToInt unknown type");
-          return -1; }
-        int operator()(const std::string& t) 
-        { return 0; }
-        int operator()(const int& t)
-        { return 1; }
-        int operator()(const double& t)
-        { return 2; }
+          return UNKNOWN; }
       };
 
       // Very ugly.
       template <class Configuration>
       void deserializeInConf(const dynamic_config::Param& param, Configuration& conf) {
         switch (param.type) {
-          case 0: conf.put(param.name, serialization::deserialize<std::string>(param.data));
+          case BOOL: conf.put(param.name, serialization::deserialize<bool>(param.data));
             break;
-          case 1: conf.put(param.name, serialization::deserialize<int>(param.data));
+          case STRING: conf.put(param.name, serialization::deserialize<std::string>(param.data));
             break;
-          case 2: conf.put(param.name, serialization::deserialize<double>(param.data));
+          case INT: conf.put(param.name, serialization::deserialize<int>(param.data));
+            break;
+          case LONG: conf.put(param.name, serialization::deserialize<long>(param.data));
+            break;
+          case FLOAT: conf.put(param.name, serialization::deserialize<float>(param.data));
+            break;
+          case DOUBLE: conf.put(param.name, serialization::deserialize<double>(param.data));
             break;
           default: ROS_ERROR_STREAM("Deserializing unknwon type");
         };

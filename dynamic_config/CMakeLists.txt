@@ -65,7 +65,7 @@ include_directories(include)
 include_directories(${catkin_INCLUDE_DIRS})
 
 ## Declare a cpp library
-# add_library(dynamic_config src/${PROJECT_NAME}/dynamic_config.cpp)
+add_library(dynamic_config src/gsoc/configuration/configuration.cpp)
 
 ## Declare a cpp executable
 add_executable(config_prototype_node src/config_prototype_node.cpp)
@@ -80,15 +80,19 @@ add_executable(listener_node src/dynamic_config/listener_node.cpp)
 ## Specify libraries to link a library or executable target against
 target_link_libraries(config_prototype_node
   ${catkin_LIBRARIES}
+  dynamic_config
 )
 target_link_libraries(reconfigurable_node
   ${catkin_LIBRARIES}
+  dynamic_config
 )
 target_link_libraries(client_node
   ${catkin_LIBRARIES}
+  dynamic_config
 )
 target_link_libraries(listener_node
   ${catkin_LIBRARIES}
+  dynamic_config
 )
 
 #############

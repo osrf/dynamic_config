@@ -33,6 +33,8 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <fstream>
+
 #include <ros/ros.h>
 #include <ros/this_node.h>
 #include <ros/callback_queue.h>
@@ -44,25 +46,63 @@
 
 #include "gsoc/configuration/msg_handler.h"
 #include "gsoc/configuration/configuration.h"
+#include "gsoc/configuration/configuration_builder.h"
 #include "gsoc/configuration/configuration_server.h"
 #include "gsoc/configuration/configuration_client.h"
+
+struct ToString {
+
+  template <typename T>
+  std::string operator()(std::pair<std::string,T> pair) const {
+    std::string out = pair.first;
+    out += "=";
+    out += toString(pair.second);
+    return out;
+  }
+
+  template <typename T>
+  std::string toString(const T& t) const {
+    try {
+      return boost::lexical_cast<std::string>(t);
+    } catch (boost::bad_lexical_cast &) {
+      return "unknown";
+    }
+  }
+
+  std::string toString(const std::string& s) const {
+    std::string out = "\"";
+    out += s;
+    out += "\"";
+    return out;
+  }
+
+  std::string toString(float f) const {
+    std::string out = boost::lexical_cast<std::string>(f);
+    out += "f";
+    return out;
+  }
+
+  std::string toString(bool b) const {
+    return b ? "true" : "false";
+  }
+
+  std::string toString(long l) const {
+    std::string out = boost::lexical_cast<std::string>(l);
+    out += "l";
+    return out;
+  }
+
+};
 
 // This is struct is to do introspection of the configuration.
 // Methods must be const. All possible types of the parameter must
 // have a function (For the example I just have string and int). A
 // template function can also be used.
 struct PrintConfiguration {
-  void operator()(std::pair<std::string,std::string> pair) const {
-    print(pair.first, "string", pair.second);
-  }
-
-  void operator()(std::pair<std::string,int> pair) const {
-    print(pair.first, "int", pair.second);
-  }
-
   template <typename T>
-  void print(const std::string& name, const std::string& type, const T& t) const {
-    ROS_INFO_STREAM("The parameter " << name << " is a " << type << " with value " << t);
+  void operator()(std::pair<std::string,T> pair) const {
+    ToString op;
+    ROS_INFO_STREAM("Param " << op(pair));
   }
 };
 
@@ -93,9 +133,25 @@ int main(int argc, char** argv) {
   // The values of the configuration can be changed, but not the structure
   // i.e., the parameters name and type
   config::Configuration conf = config::make_builder()
-    .addParameter("p1", std::string("hola"))
+    .addParameter("p1", std::string("hola holita"))
     .addParameter("p2", 100)
+    .addParameter("p3", true)
+    .addParameter("p4", 10.5f)
+    .addParameter("p5", 10.6)
+    .addParameter("p6", long(1000))
     .build();
+
+  std::ofstream ofs("/tmp/miconf.cfg");
+  std::ostream_iterator<std::string> it(ofs, "\n");
+  conf.applyAll<std::string>(ToString(), it);
+  ofs.close();
+
+  std::ifstream ifs("/tmp/miconf.cfg");
+  config::Configuration conf_bis = config::make_builder()
+    .addParameters(ifs)
+    .build();
+  ifs.close();
+  ROS_ASSERT(conf == conf_bis);
 
   config::ConfigurationServer configSrv(srvRosHandle, conf);
 

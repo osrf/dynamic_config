@@ -20,7 +20,7 @@
  *     written permission.
  *
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
  *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
@@ -33,11 +33,40 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef DYNAMIC_CONFIG_H
-#define DYNAMIC_CONFIG_H
+#include "gsoc/configuration/configuration.h"
 
-#include "gsoc/configuration/configuration_builder.h"
-#include "gsoc/configuration/configuration_client.h"
-#include "gsoc/configuration/configuration_server.h"
+namespace gsoc {
 
-#endif
+  namespace configuration {
+
+    bool Configuration::has(const std::string& name) const {
+      Parameters::const_iterator it = params_.find(name);
+      return notEnd(it);
+    }
+
+    int Configuration::size() const {
+      return params_.size();
+    }
+
+    bool Configuration::equivalent(const Configuration& conf) const {
+      return params_.size() == conf.params_.size() &&
+             std::equal(params_.begin(), params_.end(), conf.params_.begin(), sameName<Parameter>) &&
+             std::equal(params_.begin(), params_.end(), conf.params_.begin(), sameType<Parameter>);
+    }
+
+    bool Configuration::operator==(const Configuration& rhs) const {
+      return equivalent(rhs) &&
+             std::equal(params_.begin(), params_.end(), rhs.params_.begin(), sameValue<Parameter>);
+    }
+
+    bool Configuration::operator!=(const Configuration& rhs) const {
+      return !(*this == rhs);
+    }
+
+    bool Configuration::notEnd(Parameters::const_iterator& it) const {
+      return it != params_.end();
+    }
+
+  } // configuration
+
+} // gsoc
