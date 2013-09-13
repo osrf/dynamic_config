@@ -45,50 +45,14 @@ namespace gsoc {
 
   namespace configuration {
 
-    void fromStringIntoConf(const std::string& name, const std::string& value, Configuration& conf) {
-      if (name.empty() || value.empty()) {
-        ROS_ERROR_STREAM("Parameters can't be empty");
-        return;
-      }
+    struct Line : public std::string { };
 
-      std::cerr << name << " = " << value << std::endl;
-      // Boolean
-      if (boost::regex_match(value, boost::regex("true|false")))
-        conf.put(name, value == "true");
-      // String
-      else if (boost::regex_match(value, boost::regex("\".*\"")))
-        conf.put(name, std::string(++value.begin(), --value.end()));          
-      // Int
-      else if (boost::regex_match(value, boost::regex("-?[0-9]+")))
-        conf.put(name, boost::lexical_cast<int>(value));
-      // Long
-      else if (boost::regex_match(value, boost::regex("-?[0-9]+l")))
-        conf.put(name, boost::lexical_cast<long>(std::string(value.begin(), --value.end())));
-      // Float
-      else if (boost::regex_match(value, boost::regex("-?[0-9]*\\.[0-9]+f")) ||
-               boost::regex_match(value, boost::regex("-?[0-9]+\\.[0-9]*f")) )
-        conf.put(name, boost::lexical_cast<float>(std::string(value.begin(), --value.end())));
-      // Double
-      else if (boost::regex_match(value, boost::regex("-?[0-9]*\\.[0-9]+")) ||
-               boost::regex_match(value, boost::regex("-?[0-9]+\\.[0-9]*")) )
-        conf.put(name, boost::lexical_cast<double>(value));
-      // Not supported type
-      else
-        ROS_ERROR_STREAM("No match for " << name << "=" << value);
-    }
-
-    class Line : public std::string { };
-
-    std::istream &operator>>(std::istream &is, Line &l) {
-      std::getline(is, l);
-      return is;
-    }
+    std::istream &operator>>(std::istream &is, Line &l);
 
     class ConfigurationBuilder {
     public:
-      ConfigurationBuilder(const ros::NodeHandle& n)
-      : n_(n)
-      { }
+
+      ConfigurationBuilder(const ros::NodeHandle& n);
 
       template <typename T>
       ConfigurationBuilder& addParameter(const std::string& name,
@@ -107,34 +71,30 @@ namespace gsoc {
         return *this;
       }
 
-      ConfigurationBuilder& addParameters(std::istream_iterator<Line> is) {
-        std::istream_iterator<Line> end;
-        for (; is != end; ++is) {
-          if (is->empty()) continue;
-          int pos = is->find("=");
-          if (pos == std::string::npos) continue;
-          fromStringIntoConf(is->substr(0, pos), is->substr(pos+1, is->length()), conf_); 
-        }
-       return *this;
-      }
+      ConfigurationBuilder& addParameters(std::istream_iterator<Line> is);
 
-      const Configuration& build() const {
-        return conf_;
-      }
+      const Configuration& build() const;
 
     private:
+
+    struct FromString {
+      FromString(Configuration& conf);
+
+      void put(const std::string& line);
+
+      void put(const std::string& name, const std::string& value);
+      
+      Configuration& conf;
+    };
+
       ros::NodeHandle n_;
       Configuration conf_;
     };
 
-    ConfigurationBuilder make_builder(const ros::NodeHandle& n) {
-      return ConfigurationBuilder(n);
-    }
+    ConfigurationBuilder make_builder(const ros::NodeHandle& n);
 
-    ConfigurationBuilder make_builder(const std::string& namespc = "~") {
-      return make_builder(ros::NodeHandle(namespc));
-    }
-
+    ConfigurationBuilder make_builder(const std::string& namespc = "~");
+ 
   } // configuration
 
 } // gsoc
