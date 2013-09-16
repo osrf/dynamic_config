@@ -33,59 +33,33 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef DYNAMIC_CONFIG_SERIALIZATION_H
-#define DYNAMIC_CONFIG_SERIALIZATION_H
+#ifndef DYNAMIC_CONFIG_CONFIGURATION_LISTENER_H
+#define DYNAMIC_CONFIG_CONFIGURATION_LISTENER_H
 
-#include "ros/ros.h"
+#include <ros/ros.h>
+
+#include "dynamic_config/Conf.h"
+#include "gsoc/configuration/configuration.h"
+#include "gsoc/configuration/msg_handler.h"
 
 namespace gsoc {
 
   namespace configuration {
 
-    namespace serialization {
+    class ConfigurationListener {
+    public:
 
-      template <typename T>
-      void serialize(const T& data, std::vector<uint8_t>& buffer)
-      {
-        buffer.resize(ros::serialization::serializationLength(data));
-        ros::serialization::OStream ostream(&buffer[0], buffer.size());
-        ros::serialization::serialize(ostream, data);
-      }
+      typedef boost::function<void (Configuration&)> Callback;
 
-      // template <>
-      // void serialize(const std::vector<uint8_t>& data, std::vector<uint8_t>& buffer)
-      // { buffer = data; }
+      ConfigurationListener(ros::NodeHandle& n, Callback cb);
 
-      template <typename T>
-      std::vector<uint8_t> serialize(const T& data)
-      {
-        std::vector<uint8_t> buffer;
-        serialize(data, buffer);
-        return buffer;
-      }
+    private:
 
-      template < typename T >
-      void deserialize(std::vector<uint8_t>& data, T& output)
-      {
-        ros::serialization::IStream istream(&data[0], data.size());
-        ros::serialization::Serializer<T>::read(istream, output);
-      }
+      void callback(const dynamic_config::Conf& msg);
 
-      // template <>
-      // void deserialize<std::vector<uint8_t> >(std::vector<uint8_t>& data, std::vector<uint8_t>& output)
-      // { 
-      //   output = data;
-      // }
-
-      template <typename T>
-      T deserialize(std::vector<uint8_t> data)
-      {
-        T output;
-        deserialize(data, output);
-        return output;
-      }
-
-    } // serialization
+      ros::Subscriber subscriber_;
+      Callback cb_;
+    };
 
   } // configuration
 

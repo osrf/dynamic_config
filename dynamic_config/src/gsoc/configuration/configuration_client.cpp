@@ -33,62 +33,39 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef DYNAMIC_CONFIG_SERIALIZATION_H
-#define DYNAMIC_CONFIG_SERIALIZATION_H
-
-#include "ros/ros.h"
+#include "gsoc/configuration/configuration_client.h"
 
 namespace gsoc {
 
   namespace configuration {
 
-    namespace serialization {
+      ConfigurationClient::ConfigurationClient(ros::NodeHandle n)
+      : getConfClient_(n.serviceClient<dynamic_config::GetConf>("get_conf"))
+      , setConfClient_(n.serviceClient<dynamic_config::SetConf>("set_conf"))
+      { }
 
-      template <typename T>
-      void serialize(const T& data, std::vector<uint8_t>& buffer)
-      {
-        buffer.resize(ros::serialization::serializationLength(data));
-        ros::serialization::OStream ostream(&buffer[0], buffer.size());
-        ros::serialization::serialize(ostream, data);
+      Configuration ConfigurationClient::configuration() {
+        Configuration conf;
+        dynamic_config::GetConf srv;
+        if (getConfClient_.call(srv))
+          msg_handler::paramMsgToParameter(srv.response.conf.params, conf);
+        else
+          ROS_ERROR("Error ConfigurationClient getconf");
+        return conf;
       }
 
-      // template <>
-      // void serialize(const std::vector<uint8_t>& data, std::vector<uint8_t>& buffer)
-      // { buffer = data; }
+      bool ConfigurationClient::reconfigure(const Configuration& conf) {
+        dynamic_config::SetConf srv;
+        conf.applyAll<dynamic_config::Param>(msg_handler::ParameterToParamMsg(), 
+          make_inserter_at_beginning(srv.request.conf.params));
 
-      template <typename T>
-      std::vector<uint8_t> serialize(const T& data)
-      {
-        std::vector<uint8_t> buffer;
-        serialize(data, buffer);
-        return buffer;
+        if (setConfClient_.call(srv))
+          return srv.response.accepted;
+
+        ROS_ERROR_STREAM("Can't reconfigure " << setConfClient_.getService());
+        return false;
       }
-
-      template < typename T >
-      void deserialize(std::vector<uint8_t>& data, T& output)
-      {
-        ros::serialization::IStream istream(&data[0], data.size());
-        ros::serialization::Serializer<T>::read(istream, output);
-      }
-
-      // template <>
-      // void deserialize<std::vector<uint8_t> >(std::vector<uint8_t>& data, std::vector<uint8_t>& output)
-      // { 
-      //   output = data;
-      // }
-
-      template <typename T>
-      T deserialize(std::vector<uint8_t> data)
-      {
-        T output;
-        deserialize(data, output);
-        return output;
-      }
-
-    } // serialization
 
   } // configuration
 
 } // gsoc
-
-#endif

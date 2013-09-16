@@ -48,66 +48,28 @@ namespace gsoc {
 
   namespace configuration {
 
-    bool accept_all(gsoc::configuration::Configuration&) {
-      return true;
-    }
+    bool accept_all(const gsoc::configuration::Configuration&);
 
-    bool deny_all(gsoc::configuration::Configuration&) {
-      return false;
-    }
+    bool deny_all(const gsoc::configuration::Configuration&);
 
     class ConfigurationServer {
     public:
       typedef boost::function<bool (Configuration&)> Callback;
 
-      ConfigurationServer(ros::NodeHandle& n, Configuration& conf, Callback cb = accept_all) 
-      : conf_(conf)
-      , cb_(cb)
-      , getSrv_(n.advertiseService("get_conf", &ConfigurationServer::getSrvCallback, this))
-      , setSrv_(n.advertiseService("set_conf", &ConfigurationServer::setSrvCallback, this))
-      , publisher_(n.advertise<dynamic_config::Conf>("conf", 100, true))
-      { 
-        reconfigure(conf);
-      }
+      ConfigurationServer(ros::NodeHandle& n, Configuration& conf, Callback cb = accept_all);
 
-      Configuration configuration() {
-        return conf_;
-      }
+      const Configuration& configuration() const;
 
-      bool reconfigure(Configuration& conf) {
-        if (!conf_.equivalent(conf)) {
-          ROS_ERROR("Configuration structure not valid");
-          return false;
-        }
-        bool accepted = cb_(conf);
-        if (accepted) {
-          conf_ = conf;
-          dynamic_config::Conf msg;
-          msg_handler::ParameterToParamMsg visitor;
-          conf.applyAll<dynamic_config::Param>(visitor, std::inserter(msg.params, msg.params.begin()));
-          publisher_.publish(msg);
-        }
-        return accepted;
-      }
+      bool reconfigure(Configuration& conf);
 
     private:
 
       bool getSrvCallback(dynamic_config::GetConf::Request&  req,
-                          dynamic_config::GetConf::Response& res) {
-        conf_.applyAll<dynamic_config::Param>(msg_handler::ParameterToParamMsg(),
-          std::inserter(res.conf.params, res.conf.params.begin()));
-        return true;
-      }
+                          dynamic_config::GetConf::Response& res);
 
       bool setSrvCallback(dynamic_config::SetConf::Request&  req,
-                          dynamic_config::SetConf::Response& res) {
-        Configuration conf;
-        msg_handler::paramMsgToParameter(req.conf.params.begin(),
-                                         req.conf.params.end(), conf);
-        res.accepted  = reconfigure(conf);
-        return true;
-      }
-
+                          dynamic_config::SetConf::Response& res);
+      
       Configuration conf_;
       Callback cb_;
       ros::ServiceServer getSrv_;

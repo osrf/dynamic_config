@@ -37,7 +37,10 @@
 #define DYNAMIC_CONFIG_H
 
 #include "gsoc/configuration/configuration_builder.h"
+#include "gsoc/configuration/configuration_listener.h"
 #include "gsoc/configuration/configuration_client.h"
 #include "gsoc/configuration/configuration_server.h"
+
+namespace config = gsoc::configuration;
 
 #endif

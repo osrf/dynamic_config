@@ -33,62 +33,23 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef DYNAMIC_CONFIG_SERIALIZATION_H
-#define DYNAMIC_CONFIG_SERIALIZATION_H
-
-#include "ros/ros.h"
+#include "gsoc/configuration/configuration_listener.h"
 
 namespace gsoc {
 
   namespace configuration {
 
-    namespace serialization {
+      ConfigurationListener::ConfigurationListener(ros::NodeHandle& n, Callback cb)
+      : subscriber_(n.subscribe("conf", 100, &ConfigurationListener::callback, this))
+      , cb_(cb)
+      { }
 
-      template <typename T>
-      void serialize(const T& data, std::vector<uint8_t>& buffer)
-      {
-        buffer.resize(ros::serialization::serializationLength(data));
-        ros::serialization::OStream ostream(&buffer[0], buffer.size());
-        ros::serialization::serialize(ostream, data);
+      void ConfigurationListener::callback(const dynamic_config::Conf& msg) {
+        Configuration conf;
+        msg_handler::paramMsgToParameter(msg.params, conf);
+        cb_(conf);
       }
-
-      // template <>
-      // void serialize(const std::vector<uint8_t>& data, std::vector<uint8_t>& buffer)
-      // { buffer = data; }
-
-      template <typename T>
-      std::vector<uint8_t> serialize(const T& data)
-      {
-        std::vector<uint8_t> buffer;
-        serialize(data, buffer);
-        return buffer;
-      }
-
-      template < typename T >
-      void deserialize(std::vector<uint8_t>& data, T& output)
-      {
-        ros::serialization::IStream istream(&data[0], data.size());
-        ros::serialization::Serializer<T>::read(istream, output);
-      }
-
-      // template <>
-      // void deserialize<std::vector<uint8_t> >(std::vector<uint8_t>& data, std::vector<uint8_t>& output)
-      // { 
-      //   output = data;
-      // }
-
-      template <typename T>
-      T deserialize(std::vector<uint8_t> data)
-      {
-        T output;
-        deserialize(data, output);
-        return output;
-      }
-
-    } // serialization
 
   } // configuration
 
 } // gsoc
-
-#endif

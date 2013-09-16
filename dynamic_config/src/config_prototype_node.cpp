@@ -44,11 +44,12 @@
 #include <dynamic_config/GetConf.h>
 #include <dynamic_config/SetConf.h> 
 
+#include "dynamic_config/dynamic_config.h"
 #include "gsoc/configuration/msg_handler.h"
-#include "gsoc/configuration/configuration.h"
-#include "gsoc/configuration/configuration_builder.h"
-#include "gsoc/configuration/configuration_server.h"
-#include "gsoc/configuration/configuration_client.h"
+// #include "gsoc/configuration/configuration.h"
+// #include "gsoc/configuration/configuration_builder.h"
+// #include "gsoc/configuration/configuration_server.h"
+// #include "gsoc/configuration/configuration_client.h"
 
 struct ToString {
 
@@ -118,8 +119,6 @@ void configuration_listener(gsoc::configuration::Configuration& conf) {
 int main(int argc, char** argv) {
 
   ros::init(argc, argv, "config_prototype_node");
-
-  namespace config = gsoc::configuration;
 
   // Server is executed in a different queue to simulate
   // it is a different node

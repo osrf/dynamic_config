@@ -66,29 +66,6 @@ namespace gsoc {
       ros::ServiceClient setConfClient_;
     };
 
-
-
-    class ConfigurationListener {
-    public:
-      typedef boost::function<void (Configuration&)> Callback;
-
-      ConfigurationListener(ros::NodeHandle& n, Callback cb)
-      : subscriber_(n.subscribe("conf", 100, &ConfigurationListener::callback, this))
-      , cb_(cb)
-      { }
-
-    private:
-
-      void callback(const dynamic_config::Conf& msg) {
-        Configuration conf;
-        msg_handler::paramMsgToParameter(msg.params, conf);
-        cb_(conf);
-      }
-
-      ros::Subscriber subscriber_;
-      Callback cb_;
-    };
-
   } // configuration
 
 } // gsoc
