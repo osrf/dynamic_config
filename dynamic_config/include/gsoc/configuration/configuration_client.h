@@ -50,36 +50,15 @@ namespace gsoc {
 
     class ConfigurationClient {
     public:
-      ConfigurationClient(ros::NodeHandle n)
-      : getConfClient_(n.serviceClient<dynamic_config::GetConf>("get_conf"))
-      , setConfClient_(n.serviceClient<dynamic_config::SetConf>("set_conf"))
-      { }
+      ConfigurationClient(ros::NodeHandle n);
 
-      Configuration configuration() {
-        Configuration conf;
-        dynamic_config::GetConf srv;
-        if (getConfClient_.call(srv))
-          msg_handler::paramMsgToParameter(srv.response.conf.params, conf);
-        else
-          ROS_ERROR("Error ConfigurationClient getconf");
-        return conf;
-      }
+      Configuration configuration();
 
-      bool reconfigure(Configuration& conf) {
-        dynamic_config::SetConf srv;
-        conf.applyAll<dynamic_config::Param>(msg_handler::ParameterToParamMsg(), 
-          make_inserter_at_beginning(srv.request.conf.params));
-
-        if (setConfClient_.call(srv))
-          return srv.response.accepted;
-
-        ROS_ERROR_STREAM("Can't reconfigure " << setConfClient_.getService());
-        return false;
-      }
+      bool reconfigure(const Configuration& conf);
 
     private:
       template <typename T>
-      std::insert_iterator<T> make_inserter_at_beginning(T& t) {
+      std::insert_iterator<T> make_inserter_at_beginning(T& t) const {
         return std::insert_iterator<T>(t, t.begin());
       }
 

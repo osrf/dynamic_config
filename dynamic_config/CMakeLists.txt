@@ -66,7 +66,8 @@ include_directories(${catkin_INCLUDE_DIRS})
 
 ## Declare a cpp library
 add_library(dynamic_config src/gsoc/configuration/configuration.cpp
-                           src/gsoc/configuration/configuration_builder.cpp)
+                           src/gsoc/configuration/configuration_builder.cpp
+                           src/gsoc/configuration/configuration_client.cpp)
 
 ## Declare a cpp executable
 add_executable(config_prototype_node src/config_prototype_node.cpp)
