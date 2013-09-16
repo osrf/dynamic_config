@@ -54,13 +54,25 @@ namespace gsoc {
 
     class ConfigurationServer {
     public:
-      typedef boost::function<bool (Configuration&)> Callback;
+      typedef boost::function<bool (const Configuration&)> Callback;
 
       ConfigurationServer(ros::NodeHandle& n, Configuration& conf, Callback cb = accept_all);
 
+      ConfigurationServer(const ConfigurationServer& server);
+
+      ConfigurationServer& operator=(const ConfigurationServer& rhs);
+
+      bool operator==(const ConfigurationServer& rhs) const;
+
+      bool operator!=(const ConfigurationServer& rhs) const;
+
+      operator void*() const {
+        return impl_->getSrv_ && impl_->setSrv_ && impl_->publisher_ ? (void*)1 : (void*)0;
+      }
+
       const Configuration& configuration() const;
 
-      bool reconfigure(Configuration& conf);
+      bool reconfigure(const Configuration& conf);
 
     private:
 
@@ -69,12 +81,16 @@ namespace gsoc {
 
       bool setSrvCallback(dynamic_config::SetConf::Request&  req,
                           dynamic_config::SetConf::Response& res);
-      
-      Configuration conf_;
-      Callback cb_;
-      ros::ServiceServer getSrv_;
-      ros::ServiceServer setSrv_;
-      ros::Publisher publisher_;
+
+      struct Impl {
+        Configuration conf_;
+        Callback cb_;
+        ros::ServiceServer getSrv_;
+        ros::ServiceServer setSrv_;
+        ros::Publisher publisher_;
+      };
+      typedef boost::shared_ptr<Impl> ImplPtr;
+      ImplPtr impl_;
     };
 
   } // configuration

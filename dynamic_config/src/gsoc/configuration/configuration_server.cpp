@@ -48,44 +48,77 @@ namespace gsoc {
     }
 
     ConfigurationServer::ConfigurationServer(ros::NodeHandle& n, Configuration& conf, Callback cb) 
-    : conf_(conf)
-    , cb_(cb)
-    , getSrv_(n.advertiseService("get_conf", &ConfigurationServer::getSrvCallback, this))
-    , setSrv_(n.advertiseService("set_conf", &ConfigurationServer::setSrvCallback, this))
-    , publisher_(n.advertise<dynamic_config::Conf>("conf", 100, true))
-    { 
-      reconfigure(conf);
+    : impl_(new Impl)
+    {
+      impl_->conf_ = conf;
+      impl_->cb_ = cb;
+      impl_->getSrv_ = n.advertiseService("get_conf", &ConfigurationServer::getSrvCallback, this);
+      impl_->setSrv_ = n.advertiseService("set_conf", &ConfigurationServer::setSrvCallback, this);
+      impl_->publisher_ = n.advertise<dynamic_config::Conf>("conf", 100, true);
+
+      if (impl_->getSrv_ && impl_->setSrv_ && impl_->publisher_) {
+        reconfigure(conf);
+      } else {
+        impl_->getSrv_.shutdown();
+        impl_->setSrv_.shutdown();
+        impl_->publisher_.shutdown();
+        ROS_ERROR("Can't create the configuration server");
+      }
+    }
+
+    ConfigurationServer::ConfigurationServer(const ConfigurationServer& other)
+    : impl_(other.impl_)
+    { }
+
+    ConfigurationServer& ConfigurationServer::operator=(const ConfigurationServer& rhs)
+    {
+      impl_ = rhs.impl_;
+      return *this;
+    }
+
+    bool ConfigurationServer::operator==(const ConfigurationServer& rhs) const
+    {
+      return impl_ == rhs.impl_;
+    }
+
+    bool ConfigurationServer::operator!=(const ConfigurationServer& rhs) const
+    {
+      return impl_ != rhs.impl_;
     }
 
     const Configuration& ConfigurationServer::configuration() const {
-      return conf_;
+      return impl_->conf_;
     }
 
-    bool ConfigurationServer::reconfigure(Configuration& conf) {
-      if (!conf_.equivalent(conf)) {
+    bool ConfigurationServer::reconfigure(const Configuration& conf)
+    {
+      if (!impl_)
+        return false;
+
+      if (!impl_->conf_.equivalent(conf)) {
         ROS_ERROR("Configuration structure not valid");
         return false;
       }
-      bool accepted = cb_(conf);
+      bool accepted = impl_->cb_(conf);
       if (accepted) {
-        conf_ = conf;
+        impl_->conf_ = conf;
         dynamic_config::Conf msg;
         msg_handler::ParameterToParamMsg visitor;
         conf.applyAll<dynamic_config::Param>(visitor, std::inserter(msg.params, msg.params.begin()));
-        publisher_.publish(msg);
+        impl_->publisher_.publish(msg);
       }
       return accepted;
     }
 
     bool ConfigurationServer::getSrvCallback(dynamic_config::GetConf::Request&  req,
-                        dynamic_config::GetConf::Response& res) {
-      conf_.applyAll<dynamic_config::Param>(msg_handler::ParameterToParamMsg(),
+                                             dynamic_config::GetConf::Response& res) {
+      impl_->conf_.applyAll<dynamic_config::Param>(msg_handler::ParameterToParamMsg(),
         std::inserter(res.conf.params, res.conf.params.begin()));
       return true;
     }
 
     bool ConfigurationServer::setSrvCallback(dynamic_config::SetConf::Request&  req,
-                        dynamic_config::SetConf::Response& res) {
+                                             dynamic_config::SetConf::Response& res) {
       Configuration conf;
       msg_handler::paramMsgToParameter(req.conf.params.begin(),
                                        req.conf.params.end(), conf);
