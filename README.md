@@ -5,15 +5,30 @@ Prototype repository for the new roscpp_param_api
 Dynamic Config provides methods to change and query a node configuration. A configuration is a set of parameters that define the behaviour of the node. Nodes can change and query other node's configuration as well as be notified when a change is made to the configuration.
 
 
-## Building
+## Add dynamic_config to your package
+
+Download dynamic_config into your catkin workspace:
 
 ```bash
-$ source /opt/ros/groovy/setup.bash
-$ mkdir build
-$ cd build
-$ cmake ..
-$ make
-$ source ./devel/setup.bash
+$ git clone  http://github.com/
+```
+
+Add a build dependency to your package.xml
+
+```xml
+<build_depend>dynamic_config</build_depend>
+```
+
+Add dynamic_config dependencies to your cmake file:
+
+```cmake
+find_package(catkin REQUIRED COMPONENTS your_components dynamic_config)
+```
+
+In your source file you must include:
+
+```c++
+#include "dynamic_config/dynamic_config.h"
 ```
 
 ## Running a demo
@@ -230,6 +245,31 @@ std::vector<std::string> strings(size);
 conf.apply(ToStrings(), strings.begin());
 ```
 
+### Save configuration in file
+
+```c++
+// Create a configuration. Parameters initialized in the file
+// override the current values. This is useful to recover from 
+// crashes.
+std::ifstream ifs("/tmp/myconf.cfg");
+config::Configuration conf = config::make_builder()
+    .addParameter("p1", std::string("Hello World!!"))
+    .addParameter("p2", 100)
+    .addParameter("p3", true)
+    .addParameter("p4", 10.5f)
+    .addParameter("p5", 10.6)
+    .addParameter("p6", long(1000))
+    .addParameters(ifs)
+    .build();
+ifs.close();
+
+// Write configuration into a file
+std::ofstream ofs("/tmp/myconf.cfg");
+std::ostream_iterator<std::string> it(ofs, "\n");
+conf.applyAll<std::string>(config::persistance::ToString(), it);
+ofs.close();
+```
+
 ### ConfiguratonServer class
 
 ```c++
@@ -243,10 +283,10 @@ bool check_conf(const gsoc::configuration::Configuration& conf) {
 ros::NodeHandle nh("~");
 config::ConfigurationServer server(nh, conf, check_conf);
 
-// Always true configuration server
+// Accept all configurations
 config::ConfigurationServer server(nh, conf);
 
-// Always false configuration server
+// Reject all configurations
 config::ConfigurationServer server(nh, conf, config::deny_all);
 
 // Get current configuration
@@ -294,13 +334,13 @@ A robot control system usually comprises many nodes. These nodes operate at a fi
 
 When possible local parameters should be used rather than globals because they enhance encapsulation and independence of nodes. But sometimes global parameters are useful. The current Parameter Server is used to initialize values in the configuration.
 
-Local parameters live along with a node. If the node dies, for whatever reason, the configuration dies as well. Parameters has a name and a value.
+Local parameters live along with a node. If the node dies, for whatever reason, the configuration dies as well. Parameters has a name and a value. If the node crashes theres no way to recover the last configuration. A few methods are provided to let the user write the configuration to a file and read it when necessary.
 
 ### Public/Private parameters
 
 All parameters in a configuration are public. Having private parameters in a configuration is only useful for debug purposes. To keep the API simpler private parameters have been omitted.
 
-Parameters in a configuration can be changed at any time. 
+Parameters in a configuration can be changed at any time if the node allows them.
 
 ### Static/Dynamic parameters
 
@@ -318,8 +358,8 @@ The requester gets a true if the new configuration is accepted or a false if not
 
 ### On update notifications
 
-Nodes can listen to changes on a configuration. The update notifications rely over ROS topics, so there's no guarantee that the change is received by all listeners. I finally took this decision because topics are widely used in ROS systems despite of the non-guarantee delivery mechanism and because using services to do so is quite inefficient and difficult to manage.
+Nodes can listen to changes on a configuration. The update notifications rely over ROS topics, so there's no guarantee that the change is received by all listeners. Topics are widely used in ROS systems despite of the non-guarantee delivery mechanism. Using services to implement a one-to-many delivery mechanism is quite inefficient and difficult to manage.
 
 ### External configuration
 
-External configuration is needed to document a little bit the parameters. Using the wiki or the README.md file from bitbucket are possible solutions.
+External configuration is needed to document a little bit the parameters. Using the wiki or the README.md file from github are possible solutions.
