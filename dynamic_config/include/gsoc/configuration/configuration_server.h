@@ -58,7 +58,7 @@ namespace gsoc {
 
       ConfigurationServer(ros::NodeHandle& n, Configuration& conf, Callback cb = accept_all);
 
-      ConfigurationServer(const ConfigurationServer& server);
+      ConfigurationServer(const ConfigurationServer& other);
 
       ConfigurationServer& operator=(const ConfigurationServer& rhs);
 
@@ -66,13 +66,15 @@ namespace gsoc {
 
       bool operator!=(const ConfigurationServer& rhs) const;
 
-      operator void*() const {
-        return impl_->getSrv_ && impl_->setSrv_ && impl_->publisher_ ? (void*)1 : (void*)0;
-      }
+      bool operator<(const ConfigurationServer& rhs) const;
+
+      operator void*() const;
 
       const Configuration& configuration() const;
 
       bool reconfigure(const Configuration& conf);
+
+      void shutdown();
 
     private:
 

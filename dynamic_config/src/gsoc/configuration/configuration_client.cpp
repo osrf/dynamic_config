@@ -40,30 +40,77 @@ namespace gsoc {
   namespace configuration {
 
       ConfigurationClient::ConfigurationClient(ros::NodeHandle n)
-      : getConfClient_(n.serviceClient<dynamic_config::GetConf>("get_conf"))
-      , setConfClient_(n.serviceClient<dynamic_config::SetConf>("set_conf"))
+      : impl_(new Impl)
+      {
+        impl_->getConfClient_ = n.serviceClient<dynamic_config::GetConf>("get_conf");
+        impl_->setConfClient_ = n.serviceClient<dynamic_config::SetConf>("set_conf");
+
+        if (!impl_->valid()) {
+          shutdown();
+          ROS_ERROR_STREAM("Cannot create configuration client of node " << n.getNamespace());
+        }
+      }
+
+      ConfigurationClient::ConfigurationClient(const ConfigurationClient& other)
+      : impl_(other.impl_)
       { }
+
+      ConfigurationClient& ConfigurationClient::operator=(const ConfigurationClient& rhs)
+      {
+        impl_ = rhs.impl_;
+        return *this;
+      }
+
+      bool ConfigurationClient::operator==(const ConfigurationClient& rhs) const
+      {
+        return impl_ == rhs.impl_;
+      }
+
+      bool ConfigurationClient::operator!=(const ConfigurationClient& rhs) const
+      {
+        return impl_ != rhs.impl_;
+      }
+
+      bool ConfigurationClient::operator<(const ConfigurationClient& rhs) const
+      {
+        return impl_ < rhs.impl_;
+      }
+
+      ConfigurationClient::operator void*() const {
+        return impl_->valid() ? (void*)1 : (void*)0;
+      }
+
+      void ConfigurationClient::shutdown()
+      {
+        impl_->getConfClient_.shutdown();
+        impl_->setConfClient_.shutdown();
+      }
 
       Configuration ConfigurationClient::configuration() {
         Configuration conf;
         dynamic_config::GetConf srv;
-        if (getConfClient_.call(srv))
+        if (impl_->getConfClient_.call(srv))
           msg_handler::paramMsgToParameter(srv.response.conf.params, conf);
         else
-          ROS_ERROR("Error ConfigurationClient getconf");
+          ROS_ERROR_STREAM("Cannot get configuration from " << impl_->getConfClient_.getService());
         return conf;
       }
 
       bool ConfigurationClient::reconfigure(const Configuration& conf) {
         dynamic_config::SetConf srv;
         conf.applyAll<dynamic_config::Param>(msg_handler::ParameterToParamMsg(), 
-          make_inserter_at_beginning(srv.request.conf.params));
+                                             make_inserter_at_beginning(srv.request.conf.params));
 
-        if (setConfClient_.call(srv))
+        if (impl_->setConfClient_.call(srv))
           return srv.response.accepted;
 
-        ROS_ERROR_STREAM("Can't reconfigure " << setConfClient_.getService());
+        ROS_ERROR_STREAM("Cannot reconfigure " << impl_->setConfClient_.getService());
         return false;
+      }
+
+      bool ConfigurationClient::Impl::valid() const
+      {
+        return getConfClient_ && setConfClient_;
       }
 
   } // configuration

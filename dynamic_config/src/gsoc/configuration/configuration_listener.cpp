@@ -40,14 +40,57 @@ namespace gsoc {
   namespace configuration {
 
       ConfigurationListener::ConfigurationListener(ros::NodeHandle& n, Callback cb)
-      : subscriber_(n.subscribe("conf", 100, &ConfigurationListener::callback, this))
-      , cb_(cb)
+      : impl_(new Impl)
+      { 
+        impl_->subscriber_ = n.subscribe("conf", 100, &ConfigurationListener::callback, this);
+        impl_->cb_ = cb;
+
+        if (!impl_->subscriber_) {
+          shutdown();
+          ROS_ERROR_STREAM("Cannot create configuration listener of node " << n.getNamespace());
+        }
+
+      }
+
+      ConfigurationListener::ConfigurationListener(const ConfigurationListener& other)
+      : impl_(other.impl_)
       { }
+
+      ConfigurationListener& ConfigurationListener::operator=(const ConfigurationListener& rhs)
+      {
+        impl_ = rhs.impl_;
+        return *this;
+      }
+
+      bool ConfigurationListener::operator==(const ConfigurationListener& rhs) const
+      {
+        return impl_ == rhs.impl_;
+      }
+
+      bool ConfigurationListener::operator!=(const ConfigurationListener& rhs) const
+      {
+        return impl_ != rhs.impl_;
+      }
+
+      bool ConfigurationListener::operator<(const ConfigurationListener& rhs) const
+      {
+        return impl_ < rhs.impl_;
+      }
+
+      ConfigurationListener::operator void*() const {
+        return impl_->subscriber_ ? (void*)1 : (void*)0;
+      }
+
+      void ConfigurationListener::shutdown()
+      {
+        impl_->subscriber_.shutdown();
+        impl_->cb_ = NULL;
+      }
 
       void ConfigurationListener::callback(const dynamic_config::Conf& msg) {
         Configuration conf;
         msg_handler::paramMsgToParameter(msg.params, conf);
-        cb_(conf);
+        impl_->cb_(conf);
       }
 
   } // configuration

@@ -43,6 +43,7 @@
 #include <boost/variant.hpp>
 
 #include "gsoc/configuration/configuration_helper.h"
+#include "gsoc/configuration/persistance.h"
 
 namespace gsoc {
 
@@ -69,6 +70,17 @@ namespace gsoc {
       void put(const std::string& name, const T& t) {
         params_[name] = t;
       }
+
+      template <typename T>
+      bool insert(const std::string& name, const std::string& value) {
+        bool result = persistance::isType<T>(value);
+        if (result) put(name, persistance::cast<T>(value));
+        return result;
+      }
+
+      void insert(const std::string& name, const std::string& value);
+
+      void insert(const std::string& line);
 
       bool has(const std::string& name) const;
 

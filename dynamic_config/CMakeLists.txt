@@ -69,7 +69,8 @@ add_library(dynamic_config src/gsoc/configuration/configuration.cpp
                            src/gsoc/configuration/configuration_builder.cpp
                            src/gsoc/configuration/configuration_listener.cpp
                            src/gsoc/configuration/configuration_client.cpp
-                           src/gsoc/configuration/configuration_server.cpp)
+                           src/gsoc/configuration/configuration_server.cpp
+                           src/gsoc/configuration/persistance.cpp)
 
 ## Declare a cpp executable
 add_executable(config_prototype_node src/config_prototype_node.cpp)

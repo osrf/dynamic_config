@@ -39,6 +39,22 @@ namespace gsoc {
 
   namespace configuration {
 
+    void Configuration::insert(const std::string& name, const std::string& value) {
+      if (insert<bool>(name, value)) return;
+      if (insert<std::string>(name, value)) return;
+      if (insert<int>(name, value)) return;
+      if (insert<long>(name, value)) return;
+      if (insert<float>(name, value)) return;
+      if (insert<double>(name, value)) return;
+    }
+
+    void Configuration::insert(const std::string& line) {
+      int pos = line.find("=");
+      if (pos > (unsigned int)0 && pos < line.length())
+        insert(line.substr(0, pos), line.substr(pos+1, line.length())); 
+    }
+
+
     bool Configuration::has(const std::string& name) const {
       Parameters::const_iterator it = params_.find(name);
       return notEnd(it);

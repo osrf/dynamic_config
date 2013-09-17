@@ -52,6 +52,20 @@ namespace gsoc {
     public:
       ConfigurationClient(ros::NodeHandle n);
 
+      ConfigurationClient(const ConfigurationClient& other);
+
+      ConfigurationClient& operator=(const ConfigurationClient& rhs);
+
+      bool operator==(const ConfigurationClient& rhs) const;
+
+      bool operator!=(const ConfigurationClient& rhs) const;
+
+      bool operator<(const ConfigurationClient& rhs) const;
+
+      operator void*() const;
+
+      void shutdown();
+
       Configuration configuration();
 
       bool reconfigure(const Configuration& conf);
@@ -62,8 +76,13 @@ namespace gsoc {
         return std::insert_iterator<T>(t, t.begin());
       }
 
-      ros::ServiceClient getConfClient_;
-      ros::ServiceClient setConfClient_;
+      struct Impl {
+        ros::ServiceClient getConfClient_;
+        ros::ServiceClient setConfClient_;
+        bool valid() const;
+      };
+      typedef boost::shared_ptr<Impl> ImplPtr;
+      ImplPtr impl_;
     };
 
   } // configuration

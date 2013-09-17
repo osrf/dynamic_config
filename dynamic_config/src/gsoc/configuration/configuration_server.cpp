@@ -59,9 +59,7 @@ namespace gsoc {
       if (impl_->getSrv_ && impl_->setSrv_ && impl_->publisher_) {
         reconfigure(conf);
       } else {
-        impl_->getSrv_.shutdown();
-        impl_->setSrv_.shutdown();
-        impl_->publisher_.shutdown();
+        shutdown();
         ROS_ERROR("Can't create the configuration server");
       }
     }
@@ -86,6 +84,15 @@ namespace gsoc {
       return impl_ != rhs.impl_;
     }
 
+    bool ConfigurationServer::operator<(const ConfigurationServer& rhs) const
+    {
+      return impl_ < rhs.impl_;
+    }
+
+    ConfigurationServer::operator void*() const {
+      return impl_->getSrv_ && impl_->setSrv_ && impl_->publisher_ ? (void*)1 : (void*)0;
+    }
+
     const Configuration& ConfigurationServer::configuration() const {
       return impl_->conf_;
     }
@@ -108,6 +115,13 @@ namespace gsoc {
         impl_->publisher_.publish(msg);
       }
       return accepted;
+    }
+
+    void ConfigurationServer::shutdown()
+    {
+      impl_->getSrv_.shutdown();
+      impl_->setSrv_.shutdown();
+      impl_->publisher_.shutdown();
     }
 
     bool ConfigurationServer::getSrvCallback(dynamic_config::GetConf::Request&  req,

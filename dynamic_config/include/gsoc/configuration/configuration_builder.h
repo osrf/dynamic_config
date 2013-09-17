@@ -71,7 +71,9 @@ namespace gsoc {
         return *this;
       }
 
-      ConfigurationBuilder& addParameters(std::istream_iterator<Line> is);
+      ConfigurationBuilder& addLine(const std::string& line);
+
+      ConfigurationBuilder& addParameters(std::istream& is);
 
       const Configuration& build() const;
 

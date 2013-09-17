@@ -53,12 +53,31 @@ namespace gsoc {
 
       ConfigurationListener(ros::NodeHandle& n, Callback cb);
 
+      ConfigurationListener(const ConfigurationListener& other);
+
+      ConfigurationListener& operator=(const ConfigurationListener& rhs);
+
+      bool operator==(const ConfigurationListener& rhs) const;
+
+      bool operator!=(const ConfigurationListener& rhs) const;
+
+      bool operator<(const ConfigurationListener& rhs) const;
+
+      operator void*() const;
+
+      void shutdown();
+
     private:
 
       void callback(const dynamic_config::Conf& msg);
 
-      ros::Subscriber subscriber_;
-      Callback cb_;
+      struct Impl {
+        ros::Subscriber subscriber_;
+        Callback cb_;
+      };
+      typedef boost::shared_ptr<Impl> ImplPtr;
+      ImplPtr impl_;
+
     };
 
   } // configuration

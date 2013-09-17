@@ -45,16 +45,23 @@ namespace gsoc {
       return is;
     }
 
+    std::string lineToString(const Line& l) {
+      return l;
+    }
+
     ConfigurationBuilder::ConfigurationBuilder(const ros::NodeHandle& n)
     : n_(n)
     { }
 
-    ConfigurationBuilder& ConfigurationBuilder::addParameters(std::istream_iterator<Line> is)
+    ConfigurationBuilder& ConfigurationBuilder::addLine(const std::string& line) {
+      conf_.insert(line);
+      return *this;
+    }
+
+    ConfigurationBuilder& ConfigurationBuilder::addParameters(std::istream& is)
     {
-      std::istream_iterator<Line> end;
-      FromString fromString(conf_);
-      for (; is != end; ++is)
-        if (!is->empty()) fromString.put(*is);
+      std::for_each(std::istream_iterator<Line>(is), std::istream_iterator<Line>(), 
+                    boost::bind(&ConfigurationBuilder::addLine, this, _1));
       return *this;
     }
 

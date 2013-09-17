@@ -45,71 +45,17 @@
 #include <dynamic_config/SetConf.h> 
 
 #include "dynamic_config/dynamic_config.h"
-#include "gsoc/configuration/msg_handler.h"
-// #include "gsoc/configuration/configuration.h"
-// #include "gsoc/configuration/configuration_builder.h"
-// #include "gsoc/configuration/configuration_server.h"
-// #include "gsoc/configuration/configuration_client.h"
-
-struct ToString {
-
-  template <typename T>
-  std::string operator()(std::pair<std::string,T> pair) const {
-    std::string out = pair.first;
-    out += "=";
-    out += toString(pair.second);
-    return out;
-  }
-
-  template <typename T>
-  std::string toString(const T& t) const {
-    try {
-      return boost::lexical_cast<std::string>(t);
-    } catch (boost::bad_lexical_cast &) {
-      return "unknown";
-    }
-  }
-
-  std::string toString(const std::string& s) const {
-    std::string out = "\"";
-    out += s;
-    out += "\"";
-    return out;
-  }
-
-  std::string toString(float f) const {
-    std::string out = boost::lexical_cast<std::string>(f);
-    out += "f";
-    return out;
-  }
-
-  std::string toString(bool b) const {
-    return b ? "true" : "false";
-  }
-
-  std::string toString(long l) const {
-    std::string out = boost::lexical_cast<std::string>(l);
-    out += "l";
-    return out;
-  }
-
-};
 
 // This is struct is to do introspection of the configuration.
 // Methods must be const. All possible types of the parameter must
-// have a function (For the example I just have string and int). A
-// template function can also be used.
+// have a function. A template function can also be used.
 struct PrintConfiguration {
   template <typename T>
   void operator()(std::pair<std::string,T> pair) const {
-    ToString op;
+    config::persistance::ToString op;
     ROS_INFO_STREAM("Param " << op(pair));
   }
 };
-
-bool accept_configuration(gsoc::configuration::Configuration& conf) {
-  return true;
-}
 
 void configuration_listener(gsoc::configuration::Configuration& conf) {
   // The client can do introspection in the configuration
@@ -142,7 +88,7 @@ int main(int argc, char** argv) {
 
   std::ofstream ofs("/tmp/miconf.cfg");
   std::ostream_iterator<std::string> it(ofs, "\n");
-  conf.applyAll<std::string>(ToString(), it);
+  conf.applyAll<std::string>(config::persistance::ToString(), it);
   ofs.close();
 
   std::ifstream ifs("/tmp/miconf.cfg");
@@ -153,6 +99,7 @@ int main(int argc, char** argv) {
   ROS_ASSERT(conf == conf_bis);
 
   config::ConfigurationServer configSrv(srvRosHandle, conf);
+  config::ConfigurationServer configSrv2(srvRosHandle, conf);
 
   // Listener of a configuration
   ros::NodeHandle n("server");
