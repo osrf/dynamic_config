@@ -10,7 +10,7 @@ Dynamic Config provides methods to change and query a node configuration. A conf
 Download dynamic_config into your catkin workspace:
 
 ```bash
-$ git clone  http://github.com/
+$ git clone https://github.com/abellagonzalo/roscpp_param_api.git
 ```
 
 Add a build dependency to your package.xml
