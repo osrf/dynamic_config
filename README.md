@@ -1,6 +1,6 @@
 # Dynamic Config
 
-Prototype repository for the new roscpp_param_api
+Prototype repository for the GSoC's project New c++ Parameter API.
 
 Dynamic Config provides methods to change and query a node configuration. A configuration is a set of parameters that define the behaviour of the node. Nodes can change and query other node's configuration as well as be notified when a change is made to the configuration.
 
@@ -10,7 +10,7 @@ Dynamic Config provides methods to change and query a node configuration. A conf
 Download dynamic_config into your catkin workspace:
 
 ```bash
-$ git clone https://github.com/abellagonzalo/roscpp_param_api.git
+$ git clone https://github.com/abellagonzalo/dynamic_config.git
 ```
 
 Add a build dependency to your package.xml
