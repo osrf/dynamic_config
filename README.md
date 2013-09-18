@@ -48,14 +48,12 @@ $ roslaunch dynamic_config demo.launch
 #include "dynamic_config/dynamic_config.h"
 
 // Returns true if the number is even, false otherwise
-bool accept_even_numbers(const gsoc::configuration::Configuration& conf) {
+bool accept_even_numbers(const config::Configuration& conf) {
   return conf.get<int>("p2")%2 == 0;
 }
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "reconfigurable_node");
-
-  namespace config = gsoc::configuration;
 
   // Create the configuration.
   config::Configuration conf = config::make_builder()
@@ -95,9 +93,9 @@ The client reconfigures the *reconfigurable_node* every two seconds.
 
 int counter = 0;
 
-void timerCallback(const ros::TimerEvent&, gsoc::configuration::ConfigurationClient& client) {
+void timerCallback(const ros::TimerEvent&, config::ConfigurationClient& client) {
   // Request the configuration
-  gsoc::configuration::Configuration conf = client.configuration();
+  config::Configuration conf = client.configuration();
 
   // Set new value for param p2
   conf.put("p2", ++counter);
@@ -111,8 +109,6 @@ void timerCallback(const ros::TimerEvent&, gsoc::configuration::ConfigurationCli
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "client_node");
-
-  namespace config = gsoc::configuration;
 
   // Start the configuration client for the reconfigurable node
   ros::NodeHandle n("reconfigurable_node");
@@ -142,7 +138,7 @@ struct PrintParameter {
 };
 
 // Configuration listener callback
-void configuration_listener(const gsoc::configuration::Configuration& conf) {
+void configuration_listener(const config::Configuration& conf) {
   ROS_INFO("New configuration arrived");
   conf.applyAll(PrintParameter());
   ROS_INFO("-------------------------");  
@@ -150,8 +146,6 @@ void configuration_listener(const gsoc::configuration::Configuration& conf) {
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "listener_node");
-
-  namespace config = gsoc::configuration;
 
   // Start listener on reconfigurable_node
   ros::NodeHandle n("reconfigurable_node");
@@ -274,7 +268,7 @@ ofs.close();
 
 ```c++
 // Configuration server callback
-bool check_conf(const gsoc::configuration::Configuration& conf) {
+bool check_conf(const config::Configuration& conf) {
   // Check something in the new configuration
   return true; // to accept or false to reject
 }
@@ -315,7 +309,7 @@ bool success = client.reconfigure(newConf);
 
 ```c++
 // Configuration listener callback
-void configuration_listener(const gsoc::configuration::Configuration& conf) {
+void configuration_listener(const config::Configuration& conf) {
   ROS_INFO("New configuration arrived");
 }
 
